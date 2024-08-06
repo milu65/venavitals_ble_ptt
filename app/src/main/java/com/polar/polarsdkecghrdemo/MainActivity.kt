@@ -45,16 +45,16 @@ class MainActivity : AppCompatActivity() {
         deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
 
         val setIdButton: Button = findViewById(R.id.buttonSetID)
-        val ecgConnectButton: Button = findViewById(R.id.buttonConnectPpg)
+        val ppgEcgConnectButton: Button = findViewById(R.id.buttonConnectPpg)
         val hrConnectButton: Button = findViewById(R.id.buttonConnectHr)
         checkBT()
 
         setIdButton.setOnClickListener { onClickChangeID(it) }
-        ecgConnectButton.setOnClickListener { onClickConnectEcg(it) }
+        ppgEcgConnectButton.setOnClickListener { onClickConnectPpgEcg(it) }
         hrConnectButton.setOnClickListener { onClickConnectHr(it) }
     }
 
-    private fun onClickConnectEcg(view: View) {
+    private fun onClickConnectPpgEcg(view: View) {
         checkBT()
         if (deviceId == null || deviceId == "") {
             deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
