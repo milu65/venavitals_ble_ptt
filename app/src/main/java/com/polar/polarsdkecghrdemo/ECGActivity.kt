@@ -154,7 +154,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
         })
         try {
-//            api.connectToDevice(ppgDeviceId)
+            api.connectToDevice(ppgDeviceId)
         } catch (a: PolarInvalidArgument) {
             a.printStackTrace()
         }
