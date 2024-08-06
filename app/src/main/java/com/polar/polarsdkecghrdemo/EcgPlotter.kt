@@ -28,7 +28,7 @@ class EcgPlotter(title: String, ecgFrequency: Int) {
         return series as SimpleXYSeries
     }
 
-    fun sendSingleSample(mV: Float) {
+    fun sendSingleSample(mV: Double) {
         plotNumbers[dataIndex] = mV
         if (dataIndex >= plotNumbers.size - 1) {
             dataIndex = 0

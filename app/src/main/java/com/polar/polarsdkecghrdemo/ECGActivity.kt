@@ -1,19 +1,14 @@
 package com.polar.polarsdkecghrdemo
 
-import android.content.ComponentName
 import android.content.Intent
-import android.content.ServiceConnection
 import android.os.Bundle
-import android.os.IBinder
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.androidplot.xy.BoundaryMode
 import com.androidplot.xy.StepMode
 import com.androidplot.xy.XYPlot
-import com.polar.polarsdkecghrdemo.UartService.LocalBinder
 import com.polar.sdk.api.PolarBleApi
 import com.polar.sdk.api.PolarBleApiCallback
 import com.polar.sdk.api.PolarBleApiDefaultImpl.defaultImplementation
@@ -45,46 +40,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var ppgDisposable: Disposable? = null
     private var hrDisposable: Disposable? = null
 
-
-
-    private var me: ECGActivity = this
-
     private lateinit var ppgDeviceId: String
-    private var mService: UartService? = null
-    private val mServiceConnection: ServiceConnection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, rawBinder: IBinder) {
-            mService = (rawBinder as LocalBinder).service
-            val ms=mService
-            Log.d(MainActivity.TAG, "onServiceConnected mService= $mService")
-            if (ms != null) {
-                if (!ms.initialize()) {
-                    Log.e(MainActivity.TAG, "Unable to initialize Bluetooth")
-                    finish()
-                }
-            }
-
-
-            val deviceAddress = "D4:99:F5:24:E9:2D" //TODO: constant
-            Log.d("UartService","${mService} try connect");
-
-            val uartOld = UartOld(me,mService)
-            mService?.connect(deviceAddress)
-
-            LocalBroadcastManager.getInstance(me)
-                .registerReceiver(UartOld.UARTStatusChangeReceiver, UartOld.makeGattUpdateIntentFilter())
-        }
-
-        override fun onServiceDisconnected(classname: ComponentName) {
-            ////     mService.disconnect(mDevice);
-            Log.d(MainActivity.TAG, "onServiceDisonnected mService= $mService")
-            mService = null
-        }
-    }
-
-    private fun serviceInit() {
-        val bindIntent = Intent(this, UartService::class.java)
-        bindService(bindIntent, mServiceConnection, BIND_AUTO_CREATE)
-    }
+    private var uart: UartOld =
+        UartOld()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -159,7 +117,13 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             a.printStackTrace()
         }
 
-        serviceInit()
+        uart.setCallback{plotECG(it)}
+
+        bindService(
+            Intent(this, UartService::class.java),
+            uart.mServiceConnection,
+            BIND_AUTO_CREATE
+        ) // ServiceConnection.onServiceConnected() invoked after this
 
         val deviceIdText = "ID: $ppgDeviceId"
         textViewDeviceId.text = deviceIdText
@@ -187,7 +151,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     public override fun onDestroy() {
         super.onDestroy()
 
-        unbindService(mServiceConnection);
+        unbindService(uart.mServiceConnection)
 
         ppgDisposable?.let {
             if (!it.isDisposed) it.dispose()
@@ -221,7 +185,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
     }
 
-    fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
+    private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
         Log.d(TAG, "PPG data available ${samples.size} Thread:${Thread.currentThread()}")
         for (data in samples) {
             //Log.d(TAG, "PPG data available    ppg0: ${data.channelSamples[0]} ppg1: ${data.channelSamples[1]} ppg2: ${data.channelSamples[2]} ambient: ${data.channelSamples[3]} timeStamp: ${data.timeStamp}")
@@ -231,7 +195,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     }
 
 
-    fun plotECG(num: Float) {
+    private fun plotECG(num: Double) {
         ecgPlotter.sendSingleSample(num)
 
     }

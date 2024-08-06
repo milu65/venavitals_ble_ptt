@@ -5,121 +5,95 @@ package com.polar.polarsdkecghrdemo;
 import static java.lang.Math.pow;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.pm.PackageManager;
-import android.content.res.Configuration;
-import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
-import android.view.View;
-import android.widget.Button;
-import android.widget.RadioGroup;
-import android.widget.Toast;
 
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import java.text.DateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
+import java.util.function.Consumer;
 
 
-public class UartOld extends Activity{
-    private static final int REQUEST_SELECT_DEVICE = 1;
-    private static final int REQUEST_SELECT_DEVICE2 = 3;
-    private static final int REQUEST_ENABLE_BT = 2;
-    private static final int UART_PROFILE_READY = 10;
+public class UartOld{
     public static final String TAG = "nRFUART";
     private static final int UART_PROFILE_CONNECTED = 20;
     private static final int UART_PROFILE_DISCONNECTED = 21;
-    private static final int STATE_OFF = 10;
-    private static final int CREATE_REQUEST_CODE = 40;
-    private static final int OPEN_REQUEST_CODE = 41;
-    private static final int SAVE_REQUEST_CODE = 42;
-    public static final int request_code = 10;
-    //private static EditText textView;
     private int mState = UART_PROFILE_DISCONNECTED;
-    private BluetoothDevice mDevice = null;
-    private BluetoothAdapter mBtAdapter = null;
-    private Button btnConnectDisconnect;
-    private Button btnConnectDisconnect2;
     int lengthTxtValue = 16;
-    double[] ECG_dataIn;
-    double[] outPut;
     byte[] txValue;
-    double miny = -2;
-    String dataSaved = "";
     double ch01Value = 0;
     double ch02Value = 0;
-    double ch03Value = 0;
-    double ch04Value = 0;
 
     int[] a = new int[lengthTxtValue];
 
-    private int lastX1 = 0;
-    private int lastX2 = 0;
-    private int lastX3 = 0;
-    private int lastX4 = 0;
     boolean isRunning = false;
     boolean isConnect = false;
     boolean isSaving = false;
     // Storage Permissions
-    private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static String[] PERMISSIONS_STORAGE = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
 
-    ECGActivity ecgActivity;
+    private final String deviceAddress = "D4:99:F5:24:E9:2D"; //TODO: constant
 
-    public static BroadcastReceiver UARTStatusChangeReceiver;
+    private UartService mService;
 
+    Consumer<Double> callback;
 
+    public ServiceConnection mServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder rawBinder) {
+            mService = ((UartService.LocalBinder) rawBinder).getService();
+            Log.d(TAG, "onServiceConnected mService= $mService");
+            if (mService != null) {
+                if (!mService.initialize()) {
+                    Log.e(TAG, "Unable to initialize Bluetooth");
+//                    finish() //TODO: exit here?
+                }
+            }
 
-    public UartOld(ECGActivity ecgActivity,UartService mService) {
+            Log.d(TAG,"${mService} try connect");
 
-        this.ecgActivity=ecgActivity;
+            mService.connect(deviceAddress);
 
-        UARTStatusChangeReceiver = new BroadcastReceiver() {
+            LocalBroadcastManager.getInstance(mService)
+                    .registerReceiver(uartStatusChangeReceiver, makeGattUpdateIntentFilter());
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            Log.d(TAG, "onServiceDisonnected mService= $mService");
+
+            LocalBroadcastManager.getInstance(mService)
+                    .unregisterReceiver(uartStatusChangeReceiver);//TODO: non-tested
+            mService.disconnect();
+            mService.close();
+        }
+    };
+
+    private BroadcastReceiver uartStatusChangeReceiver = new BroadcastReceiver() {
 
             public void onReceive(Context context, final Intent intent) {
                 String action = intent.getAction();
 
-                final Intent mIntent = intent;
                 if (action.equals(UartService.ACTION_GATT_CONNECTED)) {
-                    runOnUiThread(() -> {
-                        Log.d(TAG, "UART_CONNECT_MSG");
-                        isConnect = true;
-                        mState = UART_PROFILE_CONNECTED;
-                    });
+                    Log.d(TAG, "UART_CONNECT_MSG");
+                    isConnect = true;
+                    mState = UART_PROFILE_CONNECTED;
                 }
 
                 if (action.equals(UartService.ACTION_GATT_DISCONNECTED)) {
-                    runOnUiThread(() -> {
-                        Log.d(TAG, "UART_DISCONNECT_MSG");
-                        mState = UART_PROFILE_DISCONNECTED;
-                        mService.close();
-                        isRunning = false;
-
-                    });
+                    Log.d(TAG, "UART_DISCONNECT_MSG");
+                    mState = UART_PROFILE_DISCONNECTED;
+                    mService.close();
+                    isRunning = false;
                 }
 
 
@@ -158,9 +132,10 @@ public class UartOld extends Activity{
                             temp_value = temp_value - 16777216;
                         }
 
-                        if (i%2==1) {// 隔一个取一个
-                            ch02Value = temp_value * 2.5 / pow(2, 23);
-                            ecgActivity.plotECG((float) ch02Value);
+                    if (i%2==1) {// 隔一个取一个
+                        ch02Value = temp_value * 2.5 / pow(2, 23);
+                        callback.accept(ch02Value);
+//                        ecgActivity.plotECG((float) ch02Value);
 //                        line_series_03.appendData(new DataPoint(lastX2++, temp_value * 4.5 / (pow(2, 23) - 1)), true, 400);
                         }
 
@@ -186,10 +161,9 @@ public class UartOld extends Activity{
             }
         };
 
-    }
 
 
-    public static IntentFilter makeGattUpdateIntentFilter() {
+    private IntentFilter makeGattUpdateIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(UartService.ACTION_GATT_CONNECTED);
         intentFilter.addAction(UartService.ACTION_GATT_DISCONNECTED);
@@ -199,5 +173,8 @@ public class UartOld extends Activity{
         return intentFilter;
     }
 
+    public void setCallback(Consumer<Double> callback){
+        this.callback=callback;
+    }
 
 }
