@@ -4,10 +4,10 @@ plugins {
 }
 
 android {
-    namespace 'com.polar.polarsdkecghrdemo'
+    namespace 'com.venavitals.ble_ptt'
     compileSdk 33
     defaultConfig {
-        applicationId "com.polar.polarsdkdemo"
+        applicationId "com.venavitals.ble_ptt"
         minSdk 24
         targetSdk 33
         versionCode 1

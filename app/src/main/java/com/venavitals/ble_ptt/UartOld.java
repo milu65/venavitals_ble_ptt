@@ -1,5 +1,5 @@
 
-package com.polar.polarsdkecghrdemo;
+package com.venavitals.ble_ptt;
 
 
 import static java.lang.Math.pow;

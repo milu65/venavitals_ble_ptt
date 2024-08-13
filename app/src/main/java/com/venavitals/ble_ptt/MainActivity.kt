@@ -1,4 +1,4 @@
-package com.polar.polarsdkecghrdemo
+package com.venavitals.ble_ptt
 
 import android.Manifest
 import android.app.Activity

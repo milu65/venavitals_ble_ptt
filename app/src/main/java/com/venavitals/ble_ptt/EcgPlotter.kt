@@ -1,4 +1,4 @@
-package com.polar.polarsdkecghrdemo
+package com.venavitals.ble_ptt
 
 import com.androidplot.xy.AdvancedLineAndPointRenderer
 import com.androidplot.xy.SimpleXYSeries
