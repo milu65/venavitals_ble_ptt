@@ -151,6 +151,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     public override fun onDestroy() {
         super.onDestroy()
 
+        uart.shutdown()
         unbindService(uart.mServiceConnection)
 
         ppgDisposable?.let {

@@ -70,11 +70,7 @@ public class UartOld{
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
             Log.d(TAG, "onServiceDisonnected mService= $mService");
-
-            LocalBroadcastManager.getInstance(mService)
-                    .unregisterReceiver(uartStatusChangeReceiver);//TODO: non-tested
-            mService.disconnect();
-            mService.close();
+            shutdown();
         }
     };
 
@@ -177,4 +173,11 @@ public class UartOld{
         this.callback=callback;
     }
 
+    public void shutdown(){
+        LocalBroadcastManager.getInstance(mService)
+                .unregisterReceiver(uartStatusChangeReceiver);//TODO: non-tested
+        mService.stopSelf();
+        mService.disconnect();
+        mService.close();
+    }
 }
