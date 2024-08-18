@@ -17,6 +17,13 @@ import android.util.Log;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 
@@ -42,6 +49,8 @@ public class UartOld{
     };
 
     private final String deviceAddress = "D4:99:F5:24:E9:2D"; //TODO: constant
+
+    private List<Double> samples= new ArrayList<>();
 
     private UartService mService;
 
@@ -130,6 +139,7 @@ public class UartOld{
 
                     if (i%2==1) {// 隔一个取一个
                         ch02Value = temp_value * 2.5 / pow(2, 23);
+                        samples.add(ch02Value);
                         callback.accept(ch02Value);
 //                        ecgActivity.plotECG((float) ch02Value);
 //                        line_series_03.appendData(new DataPoint(lastX2++, temp_value * 4.5 / (pow(2, 23) - 1)), true, 400);
@@ -179,5 +189,41 @@ public class UartOld{
         mService.stopSelf();
         mService.disconnect();
         mService.close();
+    }
+
+    public void save(String path){
+        String filename = "ecg_samples.txt";
+        File dir = new File(path);
+        if (!dir.exists()) {
+            boolean dirCreated = dir.mkdirs();
+            if (!dirCreated) {
+                Log.e(TAG, "Failed to create directory: " + path);
+                return;
+            }
+        }
+
+        File file = new File(dir, filename);
+        try {
+            boolean fileCreated = file.createNewFile();
+            if (!fileCreated && !file.exists()) {
+                Log.e(TAG, "Failed to create file: " + file.getAbsolutePath());
+                return;
+            }
+
+            Log.d(TAG, path + " " + filename);
+            try (FileOutputStream fos = new FileOutputStream(file);
+                 OutputStreamWriter osw = new OutputStreamWriter(fos);
+                 BufferedWriter bw = new BufferedWriter(osw)) {
+                for (Double item : samples) {
+                    bw.write(String.valueOf(item));
+                    bw.newLine();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 }

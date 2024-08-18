@@ -40,6 +40,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        //Request storage permissions
+        requestPermissions(
+            arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE),
+            PERMISSION_REQUEST_CODE
+        )
+
+
         setContentView(R.layout.activity_main)
         sharedPreferences = getPreferences(MODE_PRIVATE)
         deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")

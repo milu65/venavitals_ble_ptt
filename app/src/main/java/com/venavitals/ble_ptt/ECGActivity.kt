@@ -158,6 +158,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             if (!it.isDisposed) it.dispose()
         }
         api.shutDown()
+
+        uart.save(getExternalFilesDir(null).toString());
     }
 
 
