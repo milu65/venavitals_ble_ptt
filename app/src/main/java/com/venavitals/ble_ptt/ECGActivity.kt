@@ -47,6 +47,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
     private var ECGSamples: ArrayList<Double> = ArrayList()
     private var PPGSamples: ArrayList<Double> = ArrayList()
+    private var startTimestamp: Long = 0
+    @Volatile private var isSynchronized:Boolean =false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -198,19 +200,27 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
         Log.d(TAG, "PPG data available ${samples.size} Thread:${Thread.currentThread()}")
+        if(!isSynchronized){
+            isSynchronized = true
+            startTimestamp=System.currentTimeMillis();
+            return
+        }
         for (data in samples) {
             //Log.d(TAG, "PPG data available    ppg0: ${data.channelSamples[0]} ppg1: ${data.channelSamples[1]} ppg2: ${data.channelSamples[2]} ambient: ${data.channelSamples[3]} timeStamp: ${data.timeStamp}")
             val value = data.channelSamples[0].toDouble()
             ppgPlotter.sendSingleSampleWithoutUpdate(value)
             PPGSamples.add(value)
         }
+        Log.d(TAG,"Current Sample Rate: ppg: "+PPGSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000)+" ecg: "+ECGSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000))
         ppgPlotter.update()
     }
 
 
     private fun plotECG(num: Double) {
-        ecgPlotter.sendSingleSample(num)
-        PPGSamples.add(num)
+        if(isSynchronized){
+            ecgPlotter.sendSingleSample(num)
+            ECGSamples.add(num)
+        }
     }
 
     fun streamHR() {

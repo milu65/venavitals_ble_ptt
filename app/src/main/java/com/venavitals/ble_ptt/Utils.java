@@ -30,7 +30,6 @@ public class Utils {
                 return;
             }
 
-            Log.d(TAG, path + " " + filename);
             try (FileOutputStream fos = new FileOutputStream(file);
                  OutputStreamWriter osw = new OutputStreamWriter(fos);
                  BufferedWriter bw = new BufferedWriter(osw)) {
@@ -41,6 +40,7 @@ public class Utils {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            Log.d(TAG, "file saved("+samples.size()+" samples): "+path + "/" + filename);
         } catch (IOException e) {
             e.printStackTrace();
         }
