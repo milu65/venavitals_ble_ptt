@@ -2,6 +2,7 @@ package com.venavitals.ble_ptt
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
@@ -44,6 +45,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var uart: UartOld =
         UartOld()
 
+    private var ECGSamples: ArrayList<Double> = ArrayList()
+    private var PPGSamples: ArrayList<Double> = ArrayList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -159,7 +162,12 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
         api.shutDown()
 
-        uart.save(getExternalFilesDir(null).toString());
+
+        val path = getExternalFilesDir(null).toString();
+//        path = Environment.getExternalStorageDirectory().toString();
+        Log.d(TAG, "file save path: $path");
+        Utils.saveSamples(ECGSamples,path,"ecg_samples.txt");
+        Utils.saveSamples(PPGSamples,path,"ppg_samples.txt");
     }
 
 
@@ -193,6 +201,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         for (data in samples) {
             //Log.d(TAG, "PPG data available    ppg0: ${data.channelSamples[0]} ppg1: ${data.channelSamples[1]} ppg2: ${data.channelSamples[2]} ambient: ${data.channelSamples[3]} timeStamp: ${data.timeStamp}")
             ppgPlotter.sendSingleSampleWithoutUpdate(data.channelSamples[0].toFloat())
+            PPGSamples.add(data.channelSamples[0].toDouble())
         }
         ppgPlotter.update()
     }
@@ -200,7 +209,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
     private fun plotECG(num: Double) {
         ecgPlotter.sendSingleSample(num)
-
+        PPGSamples.add(num)
     }
 
     fun streamHR() {

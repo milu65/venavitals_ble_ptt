@@ -190,40 +190,4 @@ public class UartOld{
         mService.disconnect();
         mService.close();
     }
-
-    public void save(String path){
-        String filename = "ecg_samples.txt";
-        File dir = new File(path);
-        if (!dir.exists()) {
-            boolean dirCreated = dir.mkdirs();
-            if (!dirCreated) {
-                Log.e(TAG, "Failed to create directory: " + path);
-                return;
-            }
-        }
-
-        File file = new File(dir, filename);
-        try {
-            boolean fileCreated = file.createNewFile();
-            if (!fileCreated && !file.exists()) {
-                Log.e(TAG, "Failed to create file: " + file.getAbsolutePath());
-                return;
-            }
-
-            Log.d(TAG, path + " " + filename);
-            try (FileOutputStream fos = new FileOutputStream(file);
-                 OutputStreamWriter osw = new OutputStreamWriter(fos);
-                 BufferedWriter bw = new BufferedWriter(osw)) {
-                for (Double item : samples) {
-                    bw.write(String.valueOf(item));
-                    bw.newLine();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
 }
