@@ -200,8 +200,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         Log.d(TAG, "PPG data available ${samples.size} Thread:${Thread.currentThread()}")
         for (data in samples) {
             //Log.d(TAG, "PPG data available    ppg0: ${data.channelSamples[0]} ppg1: ${data.channelSamples[1]} ppg2: ${data.channelSamples[2]} ambient: ${data.channelSamples[3]} timeStamp: ${data.timeStamp}")
-            ppgPlotter.sendSingleSampleWithoutUpdate(data.channelSamples[0].toFloat())
-            PPGSamples.add(data.channelSamples[0].toDouble())
+            val value = data.channelSamples[0].toDouble()
+            ppgPlotter.sendSingleSampleWithoutUpdate(value)
+            PPGSamples.add(value)
         }
         ppgPlotter.update()
     }

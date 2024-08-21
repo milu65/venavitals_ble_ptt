@@ -29,23 +29,13 @@ class EcgPlotter(title: String, ecgFrequency: Int) {
     }
 
     fun sendSingleSample(mV: Double) {
-        plotNumbers[dataIndex] = mV
-        if (dataIndex >= plotNumbers.size - 1) {
-            dataIndex = 0
-        }
-        if (dataIndex < plotNumbers.size - 1) {
-            plotNumbers[dataIndex + 1] = null
-        } else {
-            plotNumbers[0] = null
-        }
-
-        (series as SimpleXYSeries).setModel(plotNumbers, SimpleXYSeries.ArrayFormat.Y_VALS_ONLY)
-        dataIndex++
+        sendSingleSampleWithoutUpdate(mV)
         if(dataIndex%20==1)listener?.update()
     }
 
-    fun sendSingleSampleWithoutUpdate(mV: Float){
+    fun sendSingleSampleWithoutUpdate(mV: Double){
         plotNumbers[dataIndex] = mV
+        dataIndex++
         if (dataIndex >= plotNumbers.size - 1) {
             dataIndex = 0
         }
@@ -56,7 +46,6 @@ class EcgPlotter(title: String, ecgFrequency: Int) {
         }
 
         (series as SimpleXYSeries).setModel(plotNumbers, SimpleXYSeries.ArrayFormat.Y_VALS_ONLY)
-        dataIndex++
     }
 
     fun update(){
