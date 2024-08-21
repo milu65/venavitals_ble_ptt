@@ -108,7 +108,7 @@ public class UartOld{
                 int i;
 
                 if (action.equals(UartService.ACTION_DATA_AVAILABLE)) {// 如果动作是数据可用的广播动作
-                    Log.d(TAG,"ECG data available");
+//                    Log.d(TAG,"ECG data available");
                     // 从意图中获取蓝牙传输的字节数据
                     txValue = intent.getByteArrayExtra(UartService.EXTRA_DATA);
 

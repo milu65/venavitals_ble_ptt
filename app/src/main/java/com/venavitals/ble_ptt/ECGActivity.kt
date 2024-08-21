@@ -2,7 +2,6 @@ package com.venavitals.ble_ptt
 
 import android.content.Intent
 import android.os.Bundle
-import android.os.Environment
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
@@ -45,10 +44,13 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var uart: UartOld =
         UartOld()
 
-    private var ECGSamples: ArrayList<Double> = ArrayList()
-    private var PPGSamples: ArrayList<Double> = ArrayList()
+    private var ecgSamples: ArrayList<Double> = ArrayList()
+    private var ppgSamples: ArrayList<Double> = ArrayList()
     private var startTimestamp: Long = 0
     @Volatile private var isSynchronized:Boolean =false
+
+    private var ecgSR: Int = 250
+    private var ppgSR: Int = 55  //28Hz, 44Hz, 55Hz, 135Hz, 176Hz
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,7 +69,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             setOf(
                 PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING,
                 PolarBleApi.PolarBleSdkFeature.FEATURE_BATTERY_INFO,
-                PolarBleApi.PolarBleSdkFeature.FEATURE_DEVICE_INFO
+                PolarBleApi.PolarBleSdkFeature.FEATURE_DEVICE_INFO,
+                PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_SDK_MODE
             )
         )
         api.setApiCallback(object : PolarBleApiCallback() {
@@ -133,7 +136,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         val deviceIdText = "ID: $ppgDeviceId"
         textViewDeviceId.text = deviceIdText
 
-        ppgPlotter = EcgPlotter("PPG", 55)
+        ppgPlotter = EcgPlotter("PPG", ppgSR)
         ppgPlotter.setListener(this)
         ppgPlot.addSeries(ppgPlotter.getSeries(), ppgPlotter.formatter)
         ppgPlot.setRangeBoundaries(160000, 200000, BoundaryMode.AUTO)
@@ -143,7 +146,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         ppgPlot.linesPerRangeLabel = 2
 
 
-        ecgPlotter = EcgPlotter("ECG", 250)
+        ecgPlotter = EcgPlotter("ECG", ecgSR)
         ecgPlotter.setListener(this)
         ecgPlot.addSeries(ecgPlotter.getSeries(), ecgPlotter.formatter)
         ecgPlot.setRangeBoundaries(160000, 200000, BoundaryMode.AUTO)
@@ -168,29 +171,31 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         val path = getExternalFilesDir(null).toString();
 //        path = Environment.getExternalStorageDirectory().toString();
         Log.d(TAG, "file save path: $path");
-        Utils.saveSamples(ECGSamples,path,"ecg_samples.txt");
-        Utils.saveSamples(PPGSamples,path,"ppg_samples.txt");
+        Utils.saveSamples(ecgSamples,path,"ecg_samples.txt");
+        Utils.saveSamples(ppgSamples,path,"ppg_samples.txt");
     }
 
 
     fun streamPPG() {
         val isDisposed = ppgDisposable?.isDisposed ?: true
         if (isDisposed) {
-            ppgDisposable =
-                api.requestStreamSettings(ppgDeviceId, PolarBleApi.PolarDeviceDataType.PPG)
-                    .toFlowable() //TODO: ??
-                    .flatMap { settings: PolarSensorSetting ->  api.startPpgStreaming(ppgDeviceId, settings)}
-                    .subscribe(
-                        { polarPpgData: PolarPpgData ->
-                            if (polarPpgData.type == PolarPpgData.PpgDataType.PPG3_AMBIENT1) {
-                                plotPPG(polarPpgData.samples)
-                            }
-                        },
-                        { error: Throwable ->
-                            Log.e(TAG, "PPG stream failed. Reason $error")
-                        },
-                        { Log.d(TAG, "PPG stream complete") }
-                    )
+            val settingMap=HashMap<PolarSensorSetting.SettingType, Int>()
+            settingMap[PolarSensorSetting.SettingType.SAMPLE_RATE] = ppgSR
+            settingMap[PolarSensorSetting.SettingType.RESOLUTION] = 22
+            settingMap[PolarSensorSetting.SettingType.CHANNELS] = 4
+            val setting = PolarSensorSetting(settingMap)
+
+            ppgDisposable = api.startPpgStreaming(ppgDeviceId, setting).subscribe(
+                { polarPpgData: PolarPpgData ->
+                    if (polarPpgData.type == PolarPpgData.PpgDataType.PPG3_AMBIENT1) {
+                        plotPPG(polarPpgData.samples)
+                    }
+                },
+                { error: Throwable ->
+                    Log.e(TAG, "PPG stream failed. Reason $error")
+                },
+                { Log.d(TAG, "PPG stream complete") }
+            )
         } else {
             // NOTE stops streaming if it is "running"
             ppgDisposable?.dispose()
@@ -209,9 +214,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             //Log.d(TAG, "PPG data available    ppg0: ${data.channelSamples[0]} ppg1: ${data.channelSamples[1]} ppg2: ${data.channelSamples[2]} ambient: ${data.channelSamples[3]} timeStamp: ${data.timeStamp}")
             val value = data.channelSamples[0].toDouble()
             ppgPlotter.sendSingleSampleWithoutUpdate(value)
-            PPGSamples.add(value)
+            ppgSamples.add(value)
         }
-        Log.d(TAG,"Current Sample Rate: ppg: "+PPGSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000)+" ecg: "+ECGSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000))
+        Log.d(TAG,"Current Sample Rate: ppg: "+ppgSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000)+" ecg: "+ecgSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000))
         ppgPlotter.update()
     }
 
@@ -219,7 +224,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private fun plotECG(num: Double) {
         if(isSynchronized){
             ecgPlotter.sendSingleSample(num)
-            ECGSamples.add(num)
+            ecgSamples.add(num)
         }
     }
 
