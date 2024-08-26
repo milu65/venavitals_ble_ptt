@@ -1,0 +1,25 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/navigation_connect"
+        android:enabled="true"
+        android:icon="@drawable/bluetooth_searching_24px"
+        android:title="@string/connect" />
+
+    <item
+        android:id="@+id/navigation_chart"
+        android:enabled="true"
+        android:icon="@drawable/outline_monitor_heart_24"
+        android:title="@string/chart" />
+
+    <item
+        android:id="@+id/navigation_user"
+        android:enabled="true"
+        android:icon="@drawable/baseline_account_circle_24"
+        android:title="@string/user" />
+
+    <item
+        android:id="@+id/navigation_settings"
+        android:enabled="true"
+        android:icon="@drawable/settings_24px"
+        android:title="@string/settings" />
+</menu>

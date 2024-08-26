@@ -1,0 +1,11 @@
+<!-- res/color/bottom_nav_colors.xml -->
+<!-- res/color/bottom_nav_colors.xml -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 当项目被选中时使用的颜色 -->
+    <item android:color="@color/selectedColor" android:state_checked="true"/>
+    <!-- 默认状态下未选中项目使用的颜色 -->
+    <item android:color="@color/unselectedColor" android:state_checked="false"/>
+    <!-- 任何其他状态 -->
+    <item android:color="@color/unselectedColor"/>
+</selector>
+

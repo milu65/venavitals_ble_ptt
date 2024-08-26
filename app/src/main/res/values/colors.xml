@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#d30024</color>
-    <color name="colorPrimaryDark">#161616</color>
-    <color name="colorAccent">#FDFDFD</color>
+    <color name="colorPrimary">#F1789D</color>
+    <color name="colorTextPrimary">#F1789D</color>
+    <color name="colorPrimaryDark">#FAFAFA</color><!-- 手机顶部状态栏的颜色（如时间、电量那一栏）选择不设置 -->
+    <color name="colorOnPrimary">#FAFAFA</color>
+    <color name="colorAccent">#F1789D</color>
+    <color name="colorBackground">#E0E0E0</color>
+    <color name="colorHeader">#FAFAFA</color>
+
+    <color name="colorDialogTheme">#F1789D</color>
+    <color name="colorSubTheme">#484DE9</color>
+    <color name="bottomNavi">#FAFAFA</color>
+    <color name="selectedColor">#F1789D</color> <!-- 用于导航栏选中的项 -->
+    <color name="unselectedColor">#9E9E9E</color> <!-- 用于导航栏未选中的项 -->
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+
+
 </resources>

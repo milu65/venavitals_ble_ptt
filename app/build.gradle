@@ -28,6 +28,7 @@ android {
 
 dependencies {
     implementation 'com.github.polarofficial:polar-ble-sdk:5.1.0'
+    implementation 'com.google.android.material:material:1.7.0'
     implementation 'com.androidplot:androidplot-core:1.5.10'
     implementation 'io.reactivex.rxjava3:rxjava:3.1.6'
     implementation 'io.reactivex.rxjava3:rxandroid:3.0.2'

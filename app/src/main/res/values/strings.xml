@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Polar ECG</string>
+    <string name="app_name">Sleep Monitor</string>
     <string name="ecg_name">ECG</string>
     <string name="hr_name">HR / RR</string>
     <string name="hr_title">HR and RR vs. Time (for 5 min)</string>
@@ -12,4 +12,8 @@
     <string name="connected">Connected!</string>
     <string name="device_id">device_id</string>
     <string name="set_id_button">Change device ID</string>
+    <string name="connect">Connect</string>
+    <string name="chart">Chart</string>
+    <string name="user">User</string>
+    <string name="settings">Settings</string>
 </resources>

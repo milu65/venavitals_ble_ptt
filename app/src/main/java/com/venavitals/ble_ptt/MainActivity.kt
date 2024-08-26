@@ -22,12 +22,24 @@ import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.navigation.NavigationBarView
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     companion object {
         const val TAG = "Polar_MainActivity"
         private const val SHARED_PREFS_KEY = "polar_device_id"
         private const val PERMISSION_REQUEST_CODE = 1
+
+        private var instance: MainActivity? = null
+
+        //新增getDeviceId方法，在其他类中获取DeviceId
+        fun getDeviceId(): String? {
+            return instance?.deviceId
+        }
     }
 
     private lateinit var sharedPreferences: SharedPreferences
@@ -49,17 +61,64 @@ class MainActivity : AppCompatActivity() {
 
 
         setContentView(R.layout.activity_main)
+
+        //配置AppBar
+        val toolbar: MaterialToolbar = findViewById(R.id.topAppBar)
+        setSupportActionBar(toolbar)
+
+        // 以下代码为可选，如果你未来需要处理导航点击事件
+        toolbar.setNavigationOnClickListener {
+            // Handle navigation icon click event
+        }
+
+
         sharedPreferences = getPreferences(MODE_PRIVATE)
         deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
 
         val setIdButton: Button = findViewById(R.id.buttonSetID)
         val ppgEcgConnectButton: Button = findViewById(R.id.buttonConnectPpg)
-        val hrConnectButton: Button = findViewById(R.id.buttonConnectHr)
+//        val hrConnectButton: Button = findViewById(R.id.buttonConnectHr)
         checkBT()
 
         setIdButton.setOnClickListener { onClickChangeID(it) }
         ppgEcgConnectButton.setOnClickListener { onClickConnectPpgEcg(it) }
-        hrConnectButton.setOnClickListener { onClickConnectHr(it) }
+//        hrConnectButton.setOnClickListener { onClickConnectHr(it) }
+
+        // 底部导航栏点击事件
+//        val bottomNavView: BottomNavigationView = findViewById(R.id.bottom_navigation)
+//        bottomNavView.setOnNavigationItemSelectedListener { item ->
+//            when (item.itemId) {
+//                R.id.navigation_connect -> {
+//                    val intent = Intent(this, MainActivity::class.java)
+//                    startActivity(intent)
+//                    true
+//                }
+//                R.id.navigation_chart -> {
+//                    val intent = Intent(this, ECGActivity::class.java)
+//                    startActivity(intent)
+//                    true
+//                }
+//                R.id.navigation_user -> {
+//
+//                    true
+//                }
+//                R.id.navigation_settings -> {
+//
+//                    true
+//                }
+//                else -> false
+//            }
+//        }
+        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+        bottomNavigationView.selectedItemId = R.id.navigation_connect  // 设置选中的项为 connect
+
+        val deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
+
+        bottomNavigationView.setOnItemSelectedListener { item ->
+            NavigationHelper.handleNavigation(this, item.itemId, deviceId)
+        }
+
+
     }
 
     private fun onClickConnectPpgEcg(view: View) {
@@ -71,6 +130,8 @@ class MainActivity : AppCompatActivity() {
             showToast(getString(R.string.connecting) + " " + deviceId)
             val intent = Intent(this, ECGActivity::class.java)
             intent.putExtra("id", deviceId)
+            Log.d(TAG, "Navigating to ECGActivity with deviceId: $deviceId")
+
             startActivity(intent)
         }
     }
@@ -92,23 +153,21 @@ class MainActivity : AppCompatActivity() {
         showDialog(view)
     }
 
+//    dialog修改过使用了MaterialAlertDialogBuilder
     private fun showDialog(view: View) {
-        val dialog = AlertDialog.Builder(this, R.style.PolarTheme)
-        dialog.setTitle("Enter your Polar device's ID")
-        val viewInflated = LayoutInflater.from(applicationContext).inflate(R.layout.device_id_dialog_layout, view.rootView as ViewGroup, false)
-        val input = viewInflated.findViewById<EditText>(R.id.input)
-        if (deviceId?.isNotEmpty() == true) input.setText(deviceId)
-        input.inputType = InputType.TYPE_CLASS_TEXT
-        dialog.setView(viewInflated)
-        dialog.setPositiveButton("OK") { _: DialogInterface?, _: Int ->
-            deviceId = input.text.toString().uppercase()
-            val editor = sharedPreferences.edit()
-            editor.putString(SHARED_PREFS_KEY, deviceId)
-            editor.apply()
-        }
-        dialog.setNegativeButton("Cancel") { dialogInterface: DialogInterface, _: Int -> dialogInterface.cancel() }
-        dialog.show()
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Enter your Polar device's ID")
+            .setView(R.layout.device_id_dialog_layout)
+            .setPositiveButton("OK") { dialog, which ->
+                // Handle OK button press
+                val input = (dialog as AlertDialog).findViewById<EditText>(R.id.input)
+                deviceId = input?.text.toString().uppercase(Locale.getDefault())
+                sharedPreferences.edit().putString(SHARED_PREFS_KEY, deviceId).apply()
+            }
+            .setNegativeButton("Cancel", null) // Dismiss dialog
+            .show()
     }
+
 
     private fun checkBT() {
         val btManager = applicationContext.getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
@@ -152,4 +211,13 @@ class MainActivity : AppCompatActivity() {
         val toast = Toast.makeText(applicationContext, message, Toast.LENGTH_LONG)
         toast.show()
     }
+
+//    override fun onResume() {
+//        super.onResume()
+//
+//        // 设置导航栏的选中状态为connect
+//        val bottomNavigationView: BottomNavigationView = findViewById(R.id.bottom_navigation)
+//        bottomNavigationView.selectedItemId = R.id.navigation_connect
+//    }
+
 }

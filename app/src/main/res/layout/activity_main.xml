@@ -4,20 +4,55 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/colorBackground"
     tools:context=".MainActivity">
+
+    <!-- Top App Bar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/topAppBar"
+            style="@style/MyToolbarStyle"
+
+            app:titleMarginStart="0dp"
+            app:title="@string/app_name" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!--    <Button-->
+<!--        android:id="@+id/buttonConnectHr"-->
+<!--        style="@style/CustomButtonStyle"-->
+<!--        android:layout_width="0dp"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:layout_marginStart="64dp"-->
+<!--        android:layout_marginEnd="64dp"-->
+<!--        android:layout_marginBottom="220dp"-->
+<!--        android:background="@drawable/rounded_button"-->
+<!--        android:padding="8dp"-->
+<!--        android:text="@string/connectHr"-->
+<!--        app:layout_constraintBottom_toBottomOf="parent"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintHorizontal_bias="0.0"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintTop_toBottomOf="@+id/buttonConnectPpg"-->
+<!--        app:layout_constraintVertical_bias="1.0" />-->
 
     <Button
         android:id="@+id/buttonSetID"
-        style="@style/Widget.AppCompat.Button"
+        style="@style/CustomButtonStyle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="64dp"
+        android:layout_marginTop="200dp"
         android:layout_marginEnd="64dp"
         android:layout_marginBottom="160dp"
-        android:background="@color/colorPrimary"
+        android:background="@drawable/rounded_button"
         android:padding="8dp"
         android:text="@string/set_id_button"
-        android:textColor="@color/colorAccent"
         app:layout_constraintBottom_toTopOf="@+id/buttonConnectPpg"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
@@ -26,38 +61,33 @@
 
     <Button
         android:id="@+id/buttonConnectPpg"
-        style="@style/Widget.AppCompat.Button"
+        style="@style/CustomButtonStyle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="64dp"
+        android:layout_marginTop="92dp"
         android:layout_marginEnd="64dp"
-        android:background="@color/colorPrimary"
+        android:background="@drawable/rounded_button"
         android:padding="8dp"
+
         android:text="@string/connectPpgEcg"
-        android:textColor="@color/colorAccent"
-        app:layout_constraintBottom_toTopOf="@+id/buttonConnectHr"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/buttonSetID" />
 
-    <Button
-        android:id="@+id/buttonConnectHr"
-        style="@style/Widget.AppCompat.Button"
-        android:layout_width="0dp"
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="64dp"
-        android:layout_marginEnd="64dp"
-        android:layout_marginBottom="220dp"
-        android:background="@color/colorPrimary"
-        android:padding="8dp"
-        android:text="@string/connectHr"
-        android:textColor="@color/colorAccent"
+        android:background="@color/bottomNavi"
+        app:itemIconTint="@color/bottom_nav_colors"
+        app:itemTextColor="@color/bottom_nav_colors"
+        app:labelVisibilityMode="labeled"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/buttonConnectPpg"
-        app:layout_constraintVertical_bias="1.0" />
+        app:menu="@menu/bottom_navigation_menu" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity
 import com.androidplot.xy.BoundaryMode
 import com.androidplot.xy.StepMode
 import com.androidplot.xy.XYPlot
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.navigation.NavigationBarView
 import com.polar.sdk.api.PolarBleApi
 import com.polar.sdk.api.PolarBleApiCallback
 import com.polar.sdk.api.PolarBleApiDefaultImpl.defaultImplementation
@@ -55,7 +57,19 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ecg)
-        ppgDeviceId = intent.getStringExtra("id") ?: throw Exception("ECGActivity couldn't be created, no deviceId given")
+        // 尝试从 Intent 获取 deviceId
+        ppgDeviceId = intent.getStringExtra("id").toString()
+        Log.d(TAG, "ECGActivity received deviceId: $ppgDeviceId")
+
+        if (ppgDeviceId.isNullOrEmpty()) {
+            Toast.makeText(this, "No device ID provided. Please connect to a device first.", Toast.LENGTH_LONG).show()
+            // 使用 Intent 显式地返回到 MainActivity
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
+            // 结束当前活动并返回
+            finish()
+            return
+        }
         textViewHR = findViewById(R.id.hr)
         textViewRR = findViewById(R.id.rr)
         textViewDeviceId = findViewById(R.id.deviceId)
@@ -63,6 +77,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         textViewFwVersion = findViewById(R.id.fw_version)
         ppgPlot = findViewById(R.id.plot)
         ecgPlot = findViewById(R.id.ecg_plot)
+
+
+
 
         api = defaultImplementation(
             applicationContext,
@@ -154,6 +171,41 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         ecgPlot.setDomainStep(StepMode.INCREMENT_BY_VAL, 300.0)
         ecgPlot.setDomainBoundaries(0, 200, BoundaryMode.AUTO)
         ecgPlot.linesPerRangeLabel = 2
+
+//        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+//        bottomNavigationView.selectedItemId = R.id.navigation_chart
+//        bottomNavigationView.setOnItemSelectedListener { item ->
+//            when (item.itemId) {
+//                R.id.navigation_connect -> {
+//                    // Navigate to MainActivity
+//                    startActivity(Intent(this, MainActivity::class.java))
+//                    true
+//                }
+//                R.id.navigation_chart -> {
+//                    // Stay in ECGActivity
+//                    true
+//                }
+//                R.id.navigation_user -> {
+//                    // Placeholder for future user activity
+//                    true
+//                }
+//                R.id.navigation_settings -> {
+//                    // Placeholder for future settings activity
+//                    true
+//                }
+//                else -> false
+//            }
+//        }
+
+        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+        bottomNavigationView.selectedItemId = R.id.navigation_chart  // 设置选中的项为 chart
+
+        val deviceId = intent.getStringExtra("id")
+
+        bottomNavigationView.setOnItemSelectedListener { item ->
+            NavigationHelper.handleNavigation(this, item.itemId, deviceId)
+        }
+
     }
 
     public override fun onDestroy() {
@@ -268,5 +320,14 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
 
     }
+
+//    override fun onResume() {
+//        super.onResume()
+//
+//        // 设置导航栏的选中状态为chart
+//        val bottomNavigationView: BottomNavigationView = findViewById(R.id.bottom_navigation)
+//        bottomNavigationView.selectedItemId = R.id.navigation_chart
+//    }
+
 
 }
