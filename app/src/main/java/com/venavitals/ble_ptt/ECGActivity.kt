@@ -19,6 +19,7 @@ import com.polar.sdk.api.model.PolarDeviceInfo
 import com.polar.sdk.api.model.PolarHrData
 import com.polar.sdk.api.model.PolarPpgData
 import com.polar.sdk.api.model.PolarSensorSetting
+import com.venavitals.ble_ptt.filters.ButterworthBandpassFilter
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import java.util.UUID
@@ -255,6 +256,17 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
     }
 
+    private var ppgBufferSelector: Boolean = false
+    private var ppgBufferIdx: Int = 0
+    private var ppgBufferA = DoubleArray(ppgSR * 5) //5 sec
+    private var ppgBufferB = DoubleArray(ppgSR * 5)
+    
+    private var ecgBufferSelector: Boolean = false
+    private var ecgBufferIdx: Int = 0
+    private var ecgBufferA = DoubleArray(ecgSR * 5) //5 sec
+    private var ecgBufferB = DoubleArray(ecgSR * 5)
+
+
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
         Log.d(TAG, "PPG data available ${samples.size} Thread:${Thread.currentThread()}")
         if(!isSynchronized){
@@ -265,17 +277,37 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         for (data in samples) {
             //Log.d(TAG, "PPG data available    ppg0: ${data.channelSamples[0]} ppg1: ${data.channelSamples[1]} ppg2: ${data.channelSamples[2]} ambient: ${data.channelSamples[3]} timeStamp: ${data.timeStamp}")
             val value = data.channelSamples[0].toDouble()
-            ppgPlotter.sendSingleSampleWithoutUpdate(value)
             ppgSamples.add(value)
+
+            val buffer: DoubleArray = if(ppgBufferSelector)ppgBufferA else ppgBufferB
+
+            buffer[ppgBufferIdx++]=value;
+            if(ppgBufferIdx>=buffer.size){
+                ppgBufferSelector=!ppgBufferSelector;
+                ppgBufferIdx=0;
+
+                val res = ButterworthBandpassFilter.ppg55hzBandpassFilter(buffer);
+                ppgPlotter.sendSamples(res);
+            }
         }
+
         Log.d(TAG,"Current Sample Rate: ppg: "+ppgSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000)+" ecg: "+ecgSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000))
-        ppgPlotter.update()
     }
 
 
     private fun plotECG(num: Double) {
         if(isSynchronized){
-            ecgPlotter.sendSingleSample(num)
+            val buffer: DoubleArray = if(ecgBufferSelector)ecgBufferA else ecgBufferB
+
+            buffer[ecgBufferIdx++]=num;
+            if(ecgBufferIdx>=buffer.size){
+                ecgBufferSelector=!ecgBufferSelector;
+                ecgBufferIdx=0;
+
+                val res = ButterworthBandpassFilter.ecg250hzBandpassFilter(buffer);
+                ecgPlotter.sendSamples(res);
+            }
+            
             ecgSamples.add(num)
         }
     }

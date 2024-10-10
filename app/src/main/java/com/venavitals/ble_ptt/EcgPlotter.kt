@@ -33,6 +33,16 @@ class EcgPlotter(title: String, ecgFrequency: Int) {
         if(dataIndex%20==1)listener?.update()
     }
 
+    fun sendSamples(mV: DoubleArray){
+        dataIndex=0;
+        for(v in mV){
+            plotNumbers[dataIndex++]=v;
+        }
+
+        (series as SimpleXYSeries).setModel(plotNumbers, SimpleXYSeries.ArrayFormat.Y_VALS_ONLY)
+        update()
+    }
+
     fun sendSingleSampleWithoutUpdate(mV: Double){
         plotNumbers[dataIndex] = mV
         dataIndex++
