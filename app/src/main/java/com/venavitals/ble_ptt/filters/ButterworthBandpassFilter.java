@@ -1,5 +1,7 @@
 package com.venavitals.ble_ptt.filters;
 
+import java.util.Arrays;
+
 public class ButterworthBandpassFilter {
 
     private static double[] filter(double[] b, double[] a, double[] x) {
@@ -83,6 +85,13 @@ public class ButterworthBandpassFilter {
         double[] b = {0.1174,0,-0.2347,0,0.1174};
         double[] a = {1.0000,-2.6363,2.6711,-1.3199,0.2946};
         return filtfilt(b, a, x);
+    }
+
+    public static double[] trimSamples(double[] samples, double trimRatio) {
+        int length = samples.length;
+        int start = (int) (length * trimRatio);
+        int end = (int) (length * (1 - trimRatio));
+        return Arrays.copyOfRange(samples, start, end);
     }
 
 }

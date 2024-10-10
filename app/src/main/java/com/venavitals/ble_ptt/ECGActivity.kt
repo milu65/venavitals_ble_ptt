@@ -22,6 +22,7 @@ import com.polar.sdk.api.model.PolarSensorSetting
 import com.venavitals.ble_ptt.filters.ButterworthBandpassFilter
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
+import java.util.Deque
 import java.util.UUID
 
 
@@ -256,15 +257,12 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
     }
 
-    private var ppgBufferSelector: Boolean = false
-    private var ppgBufferIdx: Int = 0
-    private var ppgBufferA = DoubleArray(ppgSR * 5) //5 sec
-    private var ppgBufferB = DoubleArray(ppgSR * 5)
+    private var ppgBufferSize = ppgSR*7
+    private var ppgFIFOBuffer: ArrayDeque<Double> = ArrayDeque(ppgBufferSize) //5 sec
+    private var ppgPlotterSize= ppgSR*5
     
-    private var ecgBufferSelector: Boolean = false
-    private var ecgBufferIdx: Int = 0
-    private var ecgBufferA = DoubleArray(ecgSR * 5) //5 sec
-    private var ecgBufferB = DoubleArray(ecgSR * 5)
+    private var ecgBufferIdx = 0;
+    private var ecgFIFOBuffer = DoubleArray(ecgSR * 5) //5 sec
 
 
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
@@ -279,14 +277,18 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             val value = data.channelSamples[0].toDouble()
             ppgSamples.add(value)
 
-            val buffer: DoubleArray = if(ppgBufferSelector)ppgBufferA else ppgBufferB
+            if(ppgFIFOBuffer.size>=ppgBufferSize){
+                ppgFIFOBuffer.removeFirst()
+            }else{
+                ppgPlotter.sendSingleSample(value) // plot raw data before filter is ready
+            }
+            ppgFIFOBuffer.add(value);
 
-            buffer[ppgBufferIdx++]=value;
-            if(ppgBufferIdx>=buffer.size){
-                ppgBufferSelector=!ppgBufferSelector;
-                ppgBufferIdx=0;
-
-                val res = ButterworthBandpassFilter.ppg55hzBandpassFilter(buffer);
+            if(ppgFIFOBuffer.size>=ppgBufferSize){
+                val buffer = DoubleArray(ppgFIFOBuffer.size) { index -> ppgFIFOBuffer.elementAt(index) }
+                var res = ButterworthBandpassFilter.ppg55hzBandpassFilter(buffer)
+                res= ButterworthBandpassFilter.trimSamples(res,0.12) //trim
+                res = res.sliceArray(res.size-ppgPlotterSize until res.size)
                 ppgPlotter.sendSamples(res);
             }
         }
@@ -297,14 +299,11 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
     private fun plotECG(num: Double) {
         if(isSynchronized){
-            val buffer: DoubleArray = if(ecgBufferSelector)ecgBufferA else ecgBufferB
 
-            buffer[ecgBufferIdx++]=num;
-            if(ecgBufferIdx>=buffer.size){
-                ecgBufferSelector=!ecgBufferSelector;
-                ecgBufferIdx=0;
-
-                val res = ButterworthBandpassFilter.ecg250hzBandpassFilter(buffer);
+            ecgFIFOBuffer[ecgBufferIdx++]=num
+            ecgBufferIdx%=ecgFIFOBuffer.size
+            if(ecgBufferIdx%ecgSR==0){
+                val res = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgFIFOBuffer)
                 ecgPlotter.sendSamples(res);
             }
             
