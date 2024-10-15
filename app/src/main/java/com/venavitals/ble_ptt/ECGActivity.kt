@@ -1,5 +1,6 @@
 package com.venavitals.ble_ptt
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -21,6 +22,8 @@ import com.polar.sdk.api.model.PolarSensorSetting
 import com.venavitals.ble_ptt.filters.ButterworthBandpassFilter
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.UUID
 
 
@@ -223,8 +226,10 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         val path = getExternalFilesDir(null).toString();
 //        path = Environment.getExternalStorageDirectory().toString();
         Log.d(TAG, "file save path: $path");
-        Utils.saveSamples(ecgSamples,path,"ecg_samples.txt");
-        Utils.saveSamples(ppgSamples,path,"ppg_samples.txt");
+        val sdf = SimpleDateFormat("yyyy_MMdd_HH:mm:ss")
+        val resultdate = Date(System.currentTimeMillis())
+        Utils.saveSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt");
+        Utils.saveSamples(ppgSamples,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt");
     }
 
 
