@@ -10,7 +10,6 @@ import com.androidplot.xy.BoundaryMode
 import com.androidplot.xy.StepMode
 import com.androidplot.xy.XYPlot
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.navigation.NavigationBarView
 import com.polar.sdk.api.PolarBleApi
 import com.polar.sdk.api.PolarBleApiCallback
 import com.polar.sdk.api.PolarBleApiDefaultImpl.defaultImplementation
@@ -22,7 +21,6 @@ import com.polar.sdk.api.model.PolarSensorSetting
 import com.venavitals.ble_ptt.filters.ButterworthBandpassFilter
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
-import java.util.Deque
 import java.util.UUID
 
 
@@ -262,7 +260,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var ppgPlotterSize= ppgSR*5
     
     private var ecgBufferIdx = 0;
-    private var ecgFIFOBuffer = DoubleArray(ecgSR * 5) //5 sec
+    private var ecgBufferSize = ecgSR*7
+    private var ecgFIFOBuffer: ArrayDeque<Double> = ArrayDeque(ecgBufferSize) //5 sec
+    private var ecgPlotterSize= ecgSR*5
 
 
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
@@ -299,15 +299,23 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
     private fun plotECG(num: Double) {
         if(isSynchronized){
+            ecgSamples.add(num)
+            ecgBufferIdx++;
 
-            ecgFIFOBuffer[ecgBufferIdx++]=num
-            ecgBufferIdx%=ecgFIFOBuffer.size
-            if(ecgBufferIdx%ecgSR==0){
-                val res = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgFIFOBuffer)
+            if(ecgFIFOBuffer.size>=ecgBufferSize){
+                ecgFIFOBuffer.removeFirst()
+            }else{
+                ecgPlotter.sendSingleSample(num) // plot raw data before filter is ready
+            }
+            ecgFIFOBuffer.add(num);
+
+            if(ecgFIFOBuffer.size>=ecgBufferSize&&ecgBufferIdx%ecgSR==0){
+                val buffer = DoubleArray(ecgFIFOBuffer.size) { index -> ecgFIFOBuffer.elementAt(index) }
+                var res = ButterworthBandpassFilter.ecg250hzBandpassFilter(buffer)
+                res= ButterworthBandpassFilter.trimSamples(res,0.12) //trim
+                res = res.sliceArray(res.size-ecgPlotterSize until res.size)
                 ecgPlotter.sendSamples(res);
             }
-            
-            ecgSamples.add(num)
         }
     }
 
