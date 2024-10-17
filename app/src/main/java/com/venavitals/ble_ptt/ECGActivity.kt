@@ -1,9 +1,9 @@
 package com.venavitals.ble_ptt
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.util.Size
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -260,14 +260,14 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
     }
 
-    private var ppgBufferSize = ppgSR*7
-    private var ppgFIFOBuffer: ArrayDeque<Double> = ArrayDeque(ppgBufferSize) //5 sec
     private var ppgPlotterSize= ppgSR*5
+    private var ppgBufferSize = ppgPlotterSize
+    private var ppgFIFOBuffer: ArrayDeque<Double> = ArrayDeque(ppgBufferSize) //5 sec
     
     private var ecgBufferIdx = 0;
-    private var ecgBufferSize = ecgSR*7
-    private var ecgFIFOBuffer: ArrayDeque<Double> = ArrayDeque(ecgBufferSize) //5 sec
     private var ecgPlotterSize= ecgSR*5
+    private var ecgBufferSize = ecgPlotterSize
+    private var ecgFIFOBuffer: ArrayDeque<Double> = ArrayDeque(ecgBufferSize) //5 sec
 
 
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
@@ -291,9 +291,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
             if(ppgFIFOBuffer.size>=ppgBufferSize){
                 val buffer = DoubleArray(ppgFIFOBuffer.size) { index -> ppgFIFOBuffer.elementAt(index) }
-                var res = ButterworthBandpassFilter.ppg55hzBandpassFilter(buffer)
-                res= ButterworthBandpassFilter.trimSamples(res,0.12) //trim
-                res = res.sliceArray(res.size-ppgPlotterSize until res.size)
+                var res= ButterworthBandpassFilter.concatenate(buffer)
+                res = ButterworthBandpassFilter.ppg55hzBandpassFilter(res)
+                res= ButterworthBandpassFilter.trimSamples(res,buffer.size/2)
                 ppgPlotter.sendSamples(res);
             }
         }
@@ -316,9 +316,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
             if(ecgFIFOBuffer.size>=ecgBufferSize&&ecgBufferIdx%ecgSR==0){
                 val buffer = DoubleArray(ecgFIFOBuffer.size) { index -> ecgFIFOBuffer.elementAt(index) }
-                var res = ButterworthBandpassFilter.ecg250hzBandpassFilter(buffer)
-                res= ButterworthBandpassFilter.trimSamples(res,0.12) //trim
-                res = res.sliceArray(res.size-ecgPlotterSize until res.size)
+                var res= ButterworthBandpassFilter.concatenate(buffer)
+                res = ButterworthBandpassFilter.ecg250hzBandpassFilter(res)
+                res= ButterworthBandpassFilter.trimSamples(res,buffer.size/2)
                 ecgPlotter.sendSamples(res);
             }
         }

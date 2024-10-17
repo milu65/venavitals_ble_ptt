@@ -4,6 +4,23 @@ import java.util.Arrays;
 
 public class ButterworthBandpassFilter {
 
+    public static double[] concatenate(double[]arr){ //mirror padding
+        int l=0;
+        if(arr.length%2!=0)l++;
+
+        int half=arr.length/2;
+
+        double[] newArr=new double[(arr.length-l)*2];
+
+        for(int i=0;i<half;i++){
+            newArr[half-i-1]=arr[i];
+            newArr[newArr.length-i-1]=arr[half+i];
+        }
+        System.arraycopy(arr, l, newArr,half, arr.length-l);
+
+        return newArr;
+    }
+
     private static double[] filter(double[] b, double[] a, double[] x) {
         int n = x.length;
         double[] y = new double[n];
@@ -92,6 +109,13 @@ public class ButterworthBandpassFilter {
         int start = (int) (length * trimRatio);
         int end = (int) (length * (1 - trimRatio));
         return Arrays.copyOfRange(samples, start, end);
+    }
+
+
+    public static double[] trimSamples(double[] samples, int trimSize) {
+        int length = samples.length;
+        int end = length - trimSize;
+        return Arrays.copyOfRange(samples, trimSize, end);
     }
 
 }
