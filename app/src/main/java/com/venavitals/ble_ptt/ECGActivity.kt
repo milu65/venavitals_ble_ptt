@@ -23,7 +23,6 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import java.text.SimpleDateFormat
 import java.util.Collections
-import java.util.ConcurrentModificationException
 import java.util.Date
 import java.util.UUID
 
@@ -164,20 +163,23 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         ppgPlotter.setListener(this)
         ppgPlot.addSeries(ppgPlotter.getSeries(), ppgPlotter.formatter)
         ppgPlot.setRangeBoundaries(160000, 200000, BoundaryMode.AUTO)
-        ppgPlot.setRangeStep(StepMode.INCREMENT_BY_FIT, 2000.0)
-        ppgPlot.setDomainStep(StepMode.INCREMENT_BY_VAL, 300.0)
-        ppgPlot.setDomainBoundaries(0, 200, BoundaryMode.AUTO)
+        ppgPlot.setRangeStep(StepMode.INCREMENT_BY_FIT, 20000.0)
+        ppgPlot.setDomainStep(StepMode.INCREMENT_BY_VAL, 30000.0)
+        ppgPlot.setDomainBoundaries(0, 20000, BoundaryMode.AUTO)
         ppgPlot.linesPerRangeLabel = 2
+        ppgPlot.graph.setMargins(-1000f,0f,0f,0f)
 
 
         ecgPlotter = EcgPlotter("ECG", ecgSR)
         ecgPlotter.setListener(this)
         ecgPlot.addSeries(ecgPlotter.getSeries(), ecgPlotter.formatter)
         ecgPlot.setRangeBoundaries(160000, 200000, BoundaryMode.AUTO)
-        ecgPlot.setRangeStep(StepMode.INCREMENT_BY_FIT, 2000.0)
-        ecgPlot.setDomainStep(StepMode.INCREMENT_BY_VAL, 300.0)
-        ecgPlot.setDomainBoundaries(0, 200, BoundaryMode.AUTO)
+        ecgPlot.setRangeStep(StepMode.INCREMENT_BY_FIT, 20000.0)
+        ecgPlot.setDomainStep(StepMode.INCREMENT_BY_VAL, 30000.0)
+        ecgPlot.setDomainBoundaries(0, 20000, BoundaryMode.AUTO)
         ecgPlot.linesPerRangeLabel = 2
+        ecgPlot.graph.setMargins(-1000f,0f,0f,0f)
+
 
 //        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
 //        bottomNavigationView.selectedItemId = R.id.navigation_chart

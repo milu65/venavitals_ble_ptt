@@ -46,15 +46,14 @@
     <TextView
         android:id="@+id/info"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="110dp"
+        android:lines="6"
         android:textColor="@android:color/black"
         android:textSize="12sp"
         android:gravity="start|bottom"
-        android:lines="6"
-        android:ellipsize="end"
         app:layout_constraintTop_toBottomOf="@+id/rr"
         tools:layout_editor_absoluteX="0dp"
-        tools:text=""/>
+        tools:text="" />
 
     <com.androidplot.xy.XYPlot
         android:id="@+id/plot"
@@ -66,7 +65,8 @@
         app:graphMarginBottom="12dp"
         app:graphMarginLeft="16dp"
         app:graphMarginTop="12dp"
-        app:gridBackgroundColor="@color/white"
+        app:borderColor="@color/white"
+        app:gridBackgroundColor="#F0F0F0"
         app:gridInsetLeft="25dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -90,7 +90,8 @@
         app:graphMarginBottom="12dp"
         app:graphMarginLeft="16dp"
         app:graphMarginTop="12dp"
-        app:gridBackgroundColor="@color/white"
+        app:gridBackgroundColor="#F0F0F0"
+        app:borderColor="@color/white"
         app:gridInsetLeft="25dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
