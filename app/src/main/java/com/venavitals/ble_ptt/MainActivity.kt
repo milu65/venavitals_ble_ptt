@@ -127,7 +127,7 @@ class MainActivity : AppCompatActivity() {
             deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
             showDialog(view)
         } else {
-            showToast(getString(R.string.connecting) + " " + deviceId)
+//            showToast(getString(R.string.connecting) + " " + deviceId)
             val intent = Intent(this, ECGActivity::class.java)
             intent.putExtra("id", deviceId)
             Log.d(TAG, "Navigating to ECGActivity with deviceId: $deviceId")

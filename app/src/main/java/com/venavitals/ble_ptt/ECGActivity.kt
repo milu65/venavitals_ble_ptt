@@ -23,6 +23,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import java.text.SimpleDateFormat
 import java.util.Collections
+import java.util.ConcurrentModificationException
 import java.util.Date
 import java.util.UUID
 
@@ -103,7 +104,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
             override fun deviceConnected(polarDeviceInfo: PolarDeviceInfo) {
                 Log.d(TAG, "Device connected " + polarDeviceInfo.deviceId)
-                Toast.makeText(applicationContext, R.string.connected, Toast.LENGTH_SHORT).show()
+//                Toast.makeText(applicationContext, R.string.connected, Toast.LENGTH_SHORT).show()
             }
 
             override fun deviceConnecting(polarDeviceInfo: PolarDeviceInfo) {
@@ -268,75 +269,84 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
 
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
-        Log.d(TAG, "PPG data available ${samples.size} Thread:${Thread.currentThread()}")
-        if(!isSynchronized){
-            isSynchronized = true
-            startTimestamp=System.currentTimeMillis();
+        try {
+            Log.d(TAG, "PPG data available ${samples.size} Thread:${Thread.currentThread()}")
+            if (!isSynchronized) {
+                isSynchronized = true
+                startTimestamp = System.currentTimeMillis()
+                runOnUiThread {
+                    Toast.makeText(applicationContext, "Synchronized", Toast.LENGTH_SHORT).show()
+                }
 
-            for(data in samples){
-                val value = data.channelSamples[0].toDouble()
-                ppgPlotter.sendSingleSampleWithoutUpdate(value)
+                for (data in samples) {
+                    val value = data.channelSamples[0].toDouble()
+                    ppgPlotter.sendSingleSampleWithoutUpdate(value)
+                }
+                ppgPlotter.update()
+                return
             }
-            ppgPlotter.update()
-            return
-        }
-        for(data in samples){
-            val value = data.channelSamples[0].toDouble()
-            ppgSamples.add(value)
-        }
-
-        //synchronized plotting
-        //freeze state
-        val ecgSize = ecgSamples.size
-        val ppgSize = ppgSamples.size
-        val timestamp = System.currentTimeMillis()
-
-        if (ecgSize < ecgPlotterSize || ppgSize < this.ppgPlotterSize) {
-            for(data in samples){
+            for (data in samples) {
                 val value = data.channelSamples[0].toDouble()
-                ppgPlotter.sendSingleSampleWithoutUpdate(value)
+                ppgSamples.add(value)
             }
-            ppgPlotter.update()
-            ecgPlotter.sendSamples(ecgSamples.toDoubleArray())
-            return
-        }
-        val ecgLen = ecgSize / ecgSR.toDouble()
-        val ppgLen = ppgSize / ppgSR.toDouble()
-        val stopLen = Math.min(ppgLen, ecgLen)
-        val ppgStopIdx = (ppgSR * stopLen).toInt() - 1
-        val ecgStopIdx = (ecgSR * stopLen).toInt() - 1
 
-        val ecgPast = DoubleArray(ecgPlotterSize)
-        var idx = 0
-        for (i in ecgStopIdx - ecgPlotterSize until ecgStopIdx) {
-            ecgPast[idx++] = ecgSamples[i]
-        }
-        var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
-        ecgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ecgRes)
-        ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
+            //synchronized plotting
+            //freeze state
+            val ecgSize = ecgSamples.size
+            val ppgSize = ppgSamples.size
+            val timestamp = System.currentTimeMillis()
+
+            if (ecgSize < ecgPlotterSize || ppgSize < ppgPlotterSize) {
+                for (data in samples) {
+                    val value = data.channelSamples[0].toDouble()
+                    ppgPlotter.sendSingleSampleWithoutUpdate(value)
+                }
+                ppgPlotter.update()
+                ecgPlotter.sendSamples(ecgSamples.toDoubleArray())
+                return
+            }
+            val ecgLen = ecgSize / ecgSR.toDouble()
+            val ppgLen = ppgSize / ppgSR.toDouble()
+            val stopLen = Math.min(ppgLen, ecgLen)
+            val ppgStopIdx = (ppgSR * stopLen).toInt() - 1
+            val ecgStopIdx = (ecgSR * stopLen).toInt() - 1
+
+            val ecgPast = DoubleArray(ecgPlotterSize)
+            var idx = 0
+            for (i in ecgStopIdx - ecgPlotterSize until ecgStopIdx) {
+                ecgPast[idx++] = ecgSamples[i]
+            }
+            var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
+            ecgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ecgRes)
+            ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
 
 
-        val ppgPast = DoubleArray(this.ppgPlotterSize)
-        idx = 0
-        for (i in ppgStopIdx - this.ppgPlotterSize until ppgStopIdx) {
-            ppgPast[idx++] = ppgSamples[i]
-        }
-        var ppgRes = ButterworthBandpassFilter.concatenate(ppgPast)
-        ppgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ppgRes)
-        ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, this.ppgPlotterSize / 2)
+            val ppgPast = DoubleArray(this.ppgPlotterSize)
+            idx = 0
+            for (i in ppgStopIdx - this.ppgPlotterSize until ppgStopIdx) {
+                ppgPast[idx++] = ppgSamples[i]
+            }
+            var ppgRes = ButterworthBandpassFilter.concatenate(ppgPast)
+            ppgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ppgRes)
+            ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, this.ppgPlotterSize / 2)
 
-        ppgPlotter.sendSamples(ppgRes)
-        ecgPlotter.sendSamples(ecgRes)
+            ppgPlotter.sendSamples(ppgRes)
+            ecgPlotter.sendSamples(ecgRes)
 
-        runOnUiThread {
-            textViewInfo.text = String.format("Duration: %d sec" +
-                    "\nActual Average PPG Sample Rate: %.2f" +
-                    "\nActual Average ECG Sample Rate: %.2f" +
-                    "\nECG-PPG Samples Length Diff: %.2f sec"
-                ,((System.currentTimeMillis()-startTimestamp)/1000)
-                ,ppgSize.toDouble()/((timestamp-startTimestamp)/1000)
-                ,ecgSize.toDouble()/((timestamp-startTimestamp)/1000)
-                ,(ecgLen-ppgLen))
+            runOnUiThread {
+                textViewInfo.text = String.format(
+                    "Filtering...\nDuration: %d sec" +
+                            "\nActual Average PPG Sample Rate: %.2f" +
+                            "\nActual Average ECG Sample Rate: %.2f" +
+                            "\nECG-PPG Samples Length Diff: %.2f sec",
+                    ((System.currentTimeMillis() - startTimestamp) / 1000),
+                    ppgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
+                    ecgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
+                    (ecgLen - ppgLen)
+                )
+            }
+        }catch (e:ConcurrentModificationException){
+            e.printStackTrace()
         }
     }
 
