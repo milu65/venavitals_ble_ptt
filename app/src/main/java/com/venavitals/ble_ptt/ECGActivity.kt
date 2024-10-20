@@ -3,7 +3,6 @@ package com.venavitals.ble_ptt
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.util.Size
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -23,6 +22,7 @@ import com.venavitals.ble_ptt.filters.ButterworthBandpassFilter
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import java.text.SimpleDateFormat
+import java.util.Collections
 import java.util.Date
 import java.util.UUID
 
@@ -38,6 +38,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private lateinit var textViewDeviceId: TextView
     private lateinit var textViewBattery: TextView
     private lateinit var textViewFwVersion: TextView
+    private lateinit var textViewInfo: TextView
     private lateinit var ppgPlot: XYPlot
     private lateinit var ecgPlot: XYPlot
     private lateinit var ppgPlotter: EcgPlotter
@@ -49,10 +50,11 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var uart: UartOld =
         UartOld()
 
-    private var ecgSamples: ArrayList<Double> = ArrayList()
-    private var ppgSamples: ArrayList<Double> = ArrayList()
-    private var startTimestamp: Long = 0
+    private var ecgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList()) //TODO: ConcurrentLinkedQueue might be better
+    private var ppgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList())
+    @Volatile private var startTimestamp: Long = 0
     @Volatile private var isSynchronized:Boolean =false
+    @Volatile private var isFilterApplied:Boolean =false
 
     private var ecgSR: Int = 250
     private var ppgSR: Int = 55  //28Hz, 44Hz, 55Hz, 135Hz, 176Hz
@@ -78,6 +80,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         textViewDeviceId = findViewById(R.id.deviceId)
         textViewBattery = findViewById(R.id.battery_level)
         textViewFwVersion = findViewById(R.id.fw_version)
+        textViewInfo = findViewById(R.id.info)
         ppgPlot = findViewById(R.id.plot)
         ecgPlot = findViewById(R.id.ecg_plot)
 
@@ -135,7 +138,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             override fun batteryLevelReceived(identifier: String, level: Int) {
                 Log.d(TAG, "Battery level $identifier $level%")
                 val batteryLevelText = "$level%"
-                textViewBattery.append(batteryLevelText)
+                textViewBattery.text=batteryLevelText
             }
 
         })
@@ -260,14 +263,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
     }
 
-    private var ppgPlotterSize= ppgSR*5
-    private var ppgBufferSize = ppgPlotterSize
-    private var ppgFIFOBuffer: ArrayDeque<Double> = ArrayDeque(ppgBufferSize) //5 sec
-    
-    private var ecgBufferIdx = 0;
-    private var ecgPlotterSize= ecgSR*5
-    private var ecgBufferSize = ecgPlotterSize
-    private var ecgFIFOBuffer: ArrayDeque<Double> = ArrayDeque(ecgBufferSize) //5 sec
+    private var ppgPlotterSize = ppgSR*5
+    private var ecgPlotterSize = ecgSR*5
 
 
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
@@ -275,52 +272,80 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         if(!isSynchronized){
             isSynchronized = true
             startTimestamp=System.currentTimeMillis();
+
+            for(data in samples){
+                val value = data.channelSamples[0].toDouble()
+                ppgPlotter.sendSingleSampleWithoutUpdate(value)
+            }
+            ppgPlotter.update()
             return
         }
-        for (data in samples) {
-            //Log.d(TAG, "PPG data available    ppg0: ${data.channelSamples[0]} ppg1: ${data.channelSamples[1]} ppg2: ${data.channelSamples[2]} ambient: ${data.channelSamples[3]} timeStamp: ${data.timeStamp}")
+        for(data in samples){
             val value = data.channelSamples[0].toDouble()
             ppgSamples.add(value)
-
-            if(ppgFIFOBuffer.size>=ppgBufferSize){
-                ppgFIFOBuffer.removeFirst()
-            }else{
-                ppgPlotter.sendSingleSample(value) // plot raw data before filter is ready
-            }
-            ppgFIFOBuffer.add(value);
-
-            if(ppgFIFOBuffer.size>=ppgBufferSize){
-                val buffer = DoubleArray(ppgFIFOBuffer.size) { index -> ppgFIFOBuffer.elementAt(index) }
-                var res= ButterworthBandpassFilter.concatenate(buffer)
-                res = ButterworthBandpassFilter.ppg55hzBandpassFilter(res)
-                res= ButterworthBandpassFilter.trimSamples(res,buffer.size/2)
-                ppgPlotter.sendSamples(res);
-            }
         }
 
-        Log.d(TAG,"Current Sample Rate: ppg: "+ppgSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000)+" ecg: "+ecgSamples.size.toDouble()/((System.currentTimeMillis()-startTimestamp)/1000))
+        //synchronized plotting
+        //freeze state
+        val ecgSize = ecgSamples.size
+        val ppgSize = ppgSamples.size
+        val timestamp = System.currentTimeMillis()
+
+        if (ecgSize < ecgPlotterSize || ppgSize < this.ppgPlotterSize) {
+            for(data in samples){
+                val value = data.channelSamples[0].toDouble()
+                ppgPlotter.sendSingleSampleWithoutUpdate(value)
+            }
+            ppgPlotter.update()
+            ecgPlotter.sendSamples(ecgSamples.toDoubleArray())
+            return
+        }
+        val ecgLen = ecgSize / ecgSR.toDouble()
+        val ppgLen = ppgSize / ppgSR.toDouble()
+        val stopLen = Math.min(ppgLen, ecgLen)
+        val ppgStopIdx = (ppgSR * stopLen).toInt() - 1
+        val ecgStopIdx = (ecgSR * stopLen).toInt() - 1
+
+        val ecgPast = DoubleArray(ecgPlotterSize)
+        var idx = 0
+        for (i in ecgStopIdx - ecgPlotterSize until ecgStopIdx) {
+            ecgPast[idx++] = ecgSamples[i]
+        }
+        var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
+        ecgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ecgRes)
+        ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
+
+
+        val ppgPast = DoubleArray(this.ppgPlotterSize)
+        idx = 0
+        for (i in ppgStopIdx - this.ppgPlotterSize until ppgStopIdx) {
+            ppgPast[idx++] = ppgSamples[i]
+        }
+        var ppgRes = ButterworthBandpassFilter.concatenate(ppgPast)
+        ppgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ppgRes)
+        ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, this.ppgPlotterSize / 2)
+
+        ppgPlotter.sendSamples(ppgRes)
+        ecgPlotter.sendSamples(ecgRes)
+
+        runOnUiThread {
+            textViewInfo.text = String.format("Duration: %d sec" +
+                    "\nActual Average PPG Sample Rate: %.2f" +
+                    "\nActual Average ECG Sample Rate: %.2f" +
+                    "\nECG-PPG Samples Length Diff: %.2f sec"
+                ,((System.currentTimeMillis()-startTimestamp)/1000)
+                ,ppgSize.toDouble()/((timestamp-startTimestamp)/1000)
+                ,ecgSize.toDouble()/((timestamp-startTimestamp)/1000)
+                ,(ecgLen-ppgLen))
+        }
     }
 
 
     private fun plotECG(num: Double) {
         if(isSynchronized){
             ecgSamples.add(num)
-            ecgBufferIdx++;
-
-            if(ecgFIFOBuffer.size>=ecgBufferSize){
-                ecgFIFOBuffer.removeFirst()
-            }else{
-                ecgPlotter.sendSingleSample(num) // plot raw data before filter is ready
-            }
-            ecgFIFOBuffer.add(num);
-
-            if(ecgFIFOBuffer.size>=ecgBufferSize&&ecgBufferIdx%ecgSR==0){
-                val buffer = DoubleArray(ecgFIFOBuffer.size) { index -> ecgFIFOBuffer.elementAt(index) }
-                var res= ButterworthBandpassFilter.concatenate(buffer)
-                res = ButterworthBandpassFilter.ecg250hzBandpassFilter(res)
-                res= ButterworthBandpassFilter.trimSamples(res,buffer.size/2)
-                ecgPlotter.sendSamples(res);
-            }
+        }else{
+            ecgPlotter.sendSingleSample(num)
         }
     }
 
@@ -332,7 +357,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 .subscribe(
                     { hrData: PolarHrData ->
                         for (sample in hrData.samples) {
-                            Log.d(TAG, "HR " + sample.hr)
+//                            Log.d(TAG, "HR " + sample.hr)
                             if (sample.rrsMs.isNotEmpty()) {
                                 val rrText = "(${sample.rrsMs.joinToString(separator = "ms, ")}ms)"
                                 textViewRR.text = rrText

@@ -38,6 +38,9 @@ class EcgPlotter(title: String, ecgFrequency: Int) {
         for(v in mV){
             plotNumbers[dataIndex++]=v;
         }
+        for(i in dataIndex until plotNumbers.size){
+            plotNumbers[i]=null
+        }
 
         (series as SimpleXYSeries).setModel(plotNumbers, SimpleXYSeries.ArrayFormat.Y_VALS_ONLY)
         update()

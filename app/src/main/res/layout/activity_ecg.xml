@@ -26,12 +26,12 @@
 
         <TextView
             android:id="@+id/battery_level"
-            android:layout_width="175dp"
+            android:layout_width="102dp"
             android:layout_height="wrap_content"
             android:textAlignment="center"
             android:textColor="@android:color/black"
             android:textSize="20sp"
-            tools:text="Battery level: 80%" />
+            tools:text="%" />
 
         <TextView
             android:id="@+id/fw_version"
@@ -42,6 +42,19 @@
             android:textSize="20sp"
             tools:text="3.1.1" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/black"
+        android:textSize="12sp"
+        android:gravity="start|bottom"
+        android:lines="6"
+        android:ellipsize="end"
+        app:layout_constraintTop_toBottomOf="@+id/rr"
+        tools:layout_editor_absoluteX="0dp"
+        tools:text=""/>
 
     <com.androidplot.xy.XYPlot
         android:id="@+id/plot"
