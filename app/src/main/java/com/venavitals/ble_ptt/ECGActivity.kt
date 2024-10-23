@@ -1,12 +1,10 @@
 package com.venavitals.ble_ptt
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
-import androidx.annotation.UiThread
 import androidx.appcompat.app.AppCompatActivity
 import com.androidplot.xy.BoundaryMode
 import com.androidplot.xy.StepMode
@@ -306,8 +304,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 ppgSamples.add(value)
             }
 
-            //synchronized plotting
-
+            //synchronized filtering and plotting
             if (ecgSize < ecgPlotterSize || ppgSize < ppgPlotterSize) {
                 for (data in samples) {
                     val value = data.channelSamples[0].toDouble()
@@ -342,11 +339,14 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             ppgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ppgRes)
             ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, this.ppgPlotterSize / 2)
 
+            //plot filtered ppg and ecg
             ppgPlotter.sendSamples(ppgRes)
             ecgPlotter.sendSamples(ecgRes)
 
+            //calc ptt
             val hrptt=Utils.calcPTT(ecgRes,ppgRes)
 
+            //update ptt
             runOnUiThread{
                 if(hrptt[1].toInt()==0){
                     textViewPtt.text="-"
@@ -355,14 +355,15 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 }
             }
 
+            //record filtered samples
             for(s in ecgRes){
                 ecgFilteredSamples.add(s)
             }
-
             for(s in ppgRes){
                 ppgFilteredSamples.add(s)
             }
 
+            //display info
             runOnUiThread {
                 textViewInfo.text = String.format(
                     "Filtering...\nDuration: %d sec" +
