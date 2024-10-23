@@ -24,10 +24,20 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE.md'
+        exclude 'META-INF/LICENSE-notice.md'
+    }
 }
 
 dependencies {
     implementation 'com.github.polarofficial:polar-ble-sdk:5.1.0'
+    implementation ('com.github.psambit9791:jdsp:2.0.1') {
+        exclude group: 'org.apache.maven.surefire', module: 'common-java5'
+        exclude group: 'org.apache.maven.surefire', module: 'surefire-api'
+    }
     implementation 'com.google.android.material:material:1.7.0'
     implementation 'com.androidplot:androidplot-core:1.5.10'
     implementation 'io.reactivex.rxjava3:rxjava:3.1.6'

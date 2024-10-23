@@ -3,6 +3,8 @@ package com.venavitals.ble_ptt.filters;
 import java.util.Arrays;
 
 public class ButterworthBandpassFilter {
+    public static int PPG_SR=55;
+    public static int ECG_SR=250;
 
     public static double[] concatenate(double[]arr){ //mirror padding
         int l=0;

@@ -1,10 +1,12 @@
 package com.venavitals.ble_ptt
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.UiThread
 import androidx.appcompat.app.AppCompatActivity
 import com.androidplot.xy.BoundaryMode
 import com.androidplot.xy.StepMode
@@ -38,6 +40,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private lateinit var textViewDeviceId: TextView
     private lateinit var textViewBattery: TextView
     private lateinit var textViewFwVersion: TextView
+    private lateinit var textViewPtt: TextView
     private lateinit var textViewInfo: TextView
     private lateinit var ppgPlot: XYPlot
     private lateinit var ecgPlot: XYPlot
@@ -52,6 +55,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
     private var ecgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList()) //TODO: ConcurrentLinkedQueue might be better
     private var ppgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList())
+    private var ppgFilteredSamples: ArrayList<Double> = ArrayList()
+    private var ecgFilteredSamples: ArrayList<Double> = ArrayList()
+
     @Volatile private var startTimestamp: Long = 0
     @Volatile private var isSynchronized:Boolean =false
     @Volatile private var isFilterApplied:Boolean =false
@@ -80,6 +86,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         textViewDeviceId = findViewById(R.id.deviceId)
         textViewBattery = findViewById(R.id.battery_level)
         textViewFwVersion = findViewById(R.id.fw_version)
+        textViewPtt = findViewById(R.id.ptt)
         textViewInfo = findViewById(R.id.info)
         ppgPlot = findViewById(R.id.plot)
         ecgPlot = findViewById(R.id.ecg_plot)
@@ -234,8 +241,10 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         Log.d(TAG, "file save path: $path");
         val sdf = SimpleDateFormat("yyyy_MMdd_HH:mm:ss")
         val resultdate = Date(System.currentTimeMillis())
-        Utils.saveSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt");
-        Utils.saveSamples(ppgSamples,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt");
+        Utils.saveSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
+        Utils.saveSamples(ppgSamples,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
+        Utils.saveSamples(ecgFilteredSamples,path,sdf.format(resultdate)+"_ecg_filtered_samples_"+ecgSR+".txt")
+        Utils.saveSamples(ppgFilteredSamples,path,sdf.format(resultdate)+"_ppg_filtered_samples_"+ppgSR+".txt")
     }
 
 
@@ -271,6 +280,11 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
 
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
+        //freeze state
+        val ecgSize = ecgSamples.size
+        val ppgSize = ppgSamples.size+samples.size
+        val timestamp = System.currentTimeMillis()
+
         try {
             Log.d(TAG, "PPG data available ${samples.size} Thread:${Thread.currentThread()}")
             if (!isSynchronized) {
@@ -293,10 +307,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             //synchronized plotting
-            //freeze state
-            val ecgSize = ecgSamples.size
-            val ppgSize = ppgSamples.size
-            val timestamp = System.currentTimeMillis()
 
             if (ecgSize < ecgPlotterSize || ppgSize < ppgPlotterSize) {
                 for (data in samples) {
@@ -319,7 +329,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 ecgPast[idx++] = ecgSamples[i]
             }
             var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
-            ecgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ecgRes)
+            ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgRes)
             ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
 
 
@@ -335,19 +345,41 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             ppgPlotter.sendSamples(ppgRes)
             ecgPlotter.sendSamples(ecgRes)
 
+            val hrptt=Utils.calcPTT(ecgRes,ppgRes)
+
+            runOnUiThread{
+                if(hrptt[1].toInt()==0){
+                    textViewPtt.text="-"
+                }else{
+                    textViewPtt.text = String.format("%3.0f ms",hrptt[1])
+                }
+            }
+
+            for(s in ecgRes){
+                ecgFilteredSamples.add(s)
+            }
+
+            for(s in ppgRes){
+                ppgFilteredSamples.add(s)
+            }
+
             runOnUiThread {
                 textViewInfo.text = String.format(
                     "Filtering...\nDuration: %d sec" +
-                            "\nActual Average PPG Sample Rate: %.2f" +
-                            "\nActual Average ECG Sample Rate: %.2f" +
+                            "\nShort Period HR: %.2f"+
+                            "\nAverage PPG Sample Rate: %.2f" +
+                            "\nAverage ECG Sample Rate: %.2f" +
                             "\nECG-PPG Samples Length Diff: %.2f sec",
                     ((System.currentTimeMillis() - startTimestamp) / 1000),
+                    hrptt[0],
                     ppgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
                     ecgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
                     (ecgLen - ppgLen)
                 )
             }
         }catch (e:ConcurrentModificationException){
+            e.printStackTrace()
+        }catch (e:ArrayIndexOutOfBoundsException){
             e.printStackTrace()
         }
     }
@@ -375,7 +407,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                                 textViewRR.text = rrText
                             }
 
-                            textViewHR.text = sample.hr.toString()
+                            textViewHR.text = "${sample.hr} BPM"
 
                         }
                     },
