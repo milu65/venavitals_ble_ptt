@@ -1,4 +1,4 @@
-package com.venavitals.ble_ptt.filters;
+package com.venavitals.ble_ptt.signal.filters;
 
 import java.util.Arrays;
 

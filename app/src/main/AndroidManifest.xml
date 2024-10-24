@@ -45,7 +45,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         >
-        <service android:name=".UartService" />
+        <service android:name=".uart.UartService" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

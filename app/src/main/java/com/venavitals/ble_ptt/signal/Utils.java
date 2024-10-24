@@ -1,7 +1,7 @@
-package com.venavitals.ble_ptt;
+package com.venavitals.ble_ptt.signal;
 
-import static com.venavitals.ble_ptt.filters.ButterworthBandpassFilter.ECG_SR;
-import static com.venavitals.ble_ptt.filters.ButterworthBandpassFilter.PPG_SR;
+import static com.venavitals.ble_ptt.signal.filters.ButterworthBandpassFilter.ECG_SR;
+import static com.venavitals.ble_ptt.signal.filters.ButterworthBandpassFilter.PPG_SR;
 
 import android.util.Log;
 

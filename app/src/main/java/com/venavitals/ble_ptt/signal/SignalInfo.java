@@ -1,4 +1,4 @@
-package com.venavitals.ble_ptt;
+package com.venavitals.ble_ptt.signal;
 
 public class SignalInfo {
     public double ppgMaxValue;

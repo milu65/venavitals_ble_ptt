@@ -18,7 +18,10 @@ import com.polar.sdk.api.model.PolarDeviceInfo
 import com.polar.sdk.api.model.PolarHrData
 import com.polar.sdk.api.model.PolarPpgData
 import com.polar.sdk.api.model.PolarSensorSetting
-import com.venavitals.ble_ptt.filters.ButterworthBandpassFilter
+import com.venavitals.ble_ptt.signal.Utils
+import com.venavitals.ble_ptt.signal.filters.ButterworthBandpassFilter
+import com.venavitals.ble_ptt.uart.UartOld
+import com.venavitals.ble_ptt.uart.UartService
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import java.text.SimpleDateFormat
@@ -363,7 +366,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             ecgPlotter.sendSamples(ecgRes)
 
             //calc ptt
-            val info=Utils.calcPTT(ecgRes,ppgRes)
+            val info= Utils.calcPTT(ecgRes,ppgRes)
 
             //update ptt
             if(info.PTT.toInt() !=0){

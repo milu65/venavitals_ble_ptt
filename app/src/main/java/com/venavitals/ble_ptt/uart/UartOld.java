@@ -1,5 +1,5 @@
 
-package com.venavitals.ble_ptt;
+package com.venavitals.ble_ptt.uart;
 
 
 import static java.lang.Math.pow;
@@ -17,11 +17,6 @@ import android.util.Log;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
