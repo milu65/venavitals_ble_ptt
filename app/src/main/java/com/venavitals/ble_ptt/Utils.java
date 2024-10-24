@@ -54,11 +54,13 @@ public class Utils {
 
     }
 
-    public static double[] calcPTT(double[] ecgSamples, double[] ppgSamples) {
+    public static SignalInfo calcPTT(double[] ecgSamples, double[] ppgSamples) {
+        SignalInfo info=new SignalInfo();
         // Find peaks
         FindPeak ecgFp = new FindPeak(ecgSamples);
         Spike ecgSpikes = ecgFp.getSpikes();
-        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(0.01, 1.0, "right");
+//        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(0.01, 1.0, "right");
+        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(0.005, 1.0, "right");
 
         FindPeak ppgFp = new FindPeak(ppgSamples);
         Spike ppgSpikes = ppgFp.getSpikes();
@@ -73,6 +75,8 @@ public class Utils {
             min=Math.min(min,ecgSamples[i]);
         }
         Log.d(TAG,"ECG min: "+min+" max: "+max);
+        info.ecgMaxValue=max;
+        info.ecgMinValue=min;
 
         min=0;
         max=0;
@@ -80,8 +84,12 @@ public class Utils {
             max=Math.max(max,ppgSamples[i]);
             min=Math.min(min,ppgSamples[i]);
         }
+        info.ppgMaxValue=max;
+        info.ppgMinValue=min;
         Log.d(TAG,"PPG min: "+min+" max: "+max);
 
+        info.ppgPeaks=ppgOutRightFilter.length;
+        info.ecgPeaks=ecgOutRightFilter.length;
         Log.d(TAG,"ECG Peaks: "+Arrays.toString(ecgOutRightFilter));
         Log.d(TAG,"PPG Peaks: "+Arrays.toString(ppgOutRightFilter));
 
@@ -108,7 +116,7 @@ public class Utils {
                 }
             }
         }
-        if (!continuityCheckFlag) return new double[]{0,0};
+        if (!continuityCheckFlag) return info;
 
         // Calc PTT and HR
         double PTTSum = 0;
@@ -132,6 +140,9 @@ public class Utils {
 
         double HR = ECG_SR * 60 / (HRSum / (ppgOutRightFilter.length - 1));
         double PTT = PTTSum / PTTCounter;
-        return new double[]{HR,PTT};
+
+        info.HR=HR;
+        info.PTT=PTT;
+        return info;
     }
 }

@@ -40,6 +40,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private lateinit var textViewFwVersion: TextView
     private lateinit var textViewPtt: TextView
     private lateinit var textViewInfo: TextView
+    private lateinit var textViewSignalInfo: TextView
     private lateinit var ppgPlot: XYPlot
     private lateinit var ecgPlot: XYPlot
     private lateinit var ppgPlotter: EcgPlotter
@@ -58,10 +59,27 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
     @Volatile private var startTimestamp: Long = 0
     @Volatile private var isSynchronized:Boolean =false
-    @Volatile private var isFilterApplied:Boolean =false
 
     private var ecgSR: Int = 250
     private var ppgSR: Int = 55  //28Hz, 44Hz, 55Hz, 135Hz, 176Hz
+
+    private fun updateSignalInfo(text:String){
+        runOnUiThread{
+            textViewSignalInfo.text=text
+        }
+    }
+
+    private fun updateInfo(text:String){
+        runOnUiThread{
+            textViewInfo.text=text
+        }
+    }
+
+    private fun updatePtt(text:String){
+        runOnUiThread{
+            textViewPtt.text=text
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,6 +104,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         textViewFwVersion = findViewById(R.id.fw_version)
         textViewPtt = findViewById(R.id.ptt)
         textViewInfo = findViewById(R.id.info)
+        textViewSignalInfo = findViewById(R.id.sinfo)
         ppgPlot = findViewById(R.id.plot)
         ecgPlot = findViewById(R.id.ecg_plot)
 
@@ -172,7 +191,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         ppgPlot.setDomainStep(StepMode.INCREMENT_BY_VAL, 30000.0)
         ppgPlot.setDomainBoundaries(0, 20000, BoundaryMode.AUTO)
         ppgPlot.linesPerRangeLabel = 2
-        ppgPlot.graph.setMargins(-1000f,0f,0f,0f)
+//        ppgPlot.graph.setMargins(-1000f,0f,0f,0f)
 
 
         ecgPlotter = EcgPlotter("ECG", ecgSR)
@@ -183,7 +202,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         ecgPlot.setDomainStep(StepMode.INCREMENT_BY_VAL, 30000.0)
         ecgPlot.setDomainBoundaries(0, 20000, BoundaryMode.AUTO)
         ecgPlot.linesPerRangeLabel = 2
-        ecgPlot.graph.setMargins(-1000f,0f,0f,0f)
+//        ecgPlot.graph.setMargins(-1000f,0f,0f,0f)
 
 
 //        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
@@ -344,16 +363,26 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             ecgPlotter.sendSamples(ecgRes)
 
             //calc ptt
-            val hrptt=Utils.calcPTT(ecgRes,ppgRes)
+            val info=Utils.calcPTT(ecgRes,ppgRes)
 
             //update ptt
-            runOnUiThread{
-                if(hrptt[1].toInt()==0){
-                    textViewPtt.text="-"
-                }else{
-                    textViewPtt.text = String.format("%3.0f ms",hrptt[1])
-                }
+            if(info.PTT.toInt() !=0){
+                updatePtt(String.format("%3.0f ms",info.PTT))
+            }else{
+                updatePtt("-")
             }
+
+            //update signal info
+            updateSignalInfo(String.format(
+                "\nPPG Peaks: %d\t YRange[%f, %f]"+
+                        "\nECG Peaks: %d\t YRange[%f, %f]",
+                info.ppgPeaks,
+                info.ppgMinValue,
+                info.ppgMaxValue,
+                info.ecgPeaks,
+                info.ecgMinValue,
+                info.ecgMaxValue
+            ))
 
             //record filtered samples
             for(s in ecgRes){
@@ -364,20 +393,18 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             //display info
-            runOnUiThread {
-                textViewInfo.text = String.format(
-                    "Filtering...\nDuration: %d sec" +
-                            "\nShort Period HR: %.2f"+
-                            "\nAverage PPG Sample Rate: %.2f" +
-                            "\nAverage ECG Sample Rate: %.2f" +
-                            "\nECG-PPG Samples Length Diff: %.2f sec",
-                    ((System.currentTimeMillis() - startTimestamp) / 1000),
-                    hrptt[0],
-                    ppgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
-                    ecgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
-                    (ecgLen - ppgLen)
-                )
-            }
+            updateInfo(String.format(
+                "Filtering...\nDuration: %d sec" +
+                        "\nShort Period HR: %.2f"+
+                        "\nAverage PPG Sample Rate: %.2f" +
+                        "\nAverage ECG Sample Rate: %.2f" +
+                        "\nECG-PPG Samples Length Diff: %.2f sec",
+                ((System.currentTimeMillis() - startTimestamp) / 1000),
+                info.HR,
+                ppgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
+                ecgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
+                (ecgLen - ppgLen)
+            ))
         }catch (e:ConcurrentModificationException){
             e.printStackTrace()
         }catch (e:ArrayIndexOutOfBoundsException){

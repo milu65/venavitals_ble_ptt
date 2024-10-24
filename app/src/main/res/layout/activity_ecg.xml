@@ -47,10 +47,10 @@
         android:id="@+id/info"
         android:layout_width="match_parent"
         android:layout_height="100dp"
-        android:lines="6"
+        android:gravity="start|bottom"
+        android:lines="8"
         android:textColor="@android:color/black"
         android:textSize="12sp"
-        android:gravity="start|bottom"
         app:layout_constraintTop_toBottomOf="@+id/rr"
         tools:layout_editor_absoluteX="0dp"
         tools:text="" />
@@ -60,15 +60,11 @@
         style="@style/FullScreenGraph"
         android:layout_width="fill_parent"
         android:layout_height="150dp"
-        android:layout_marginBottom="264dp"
-        app:graphBackgroundColor="@color/colorBackground"
-        app:graphMarginBottom="12dp"
-        app:graphMarginLeft="16dp"
-        app:graphMarginTop="12dp"
+        android:layout_marginBottom="4dp"
         app:borderColor="@color/white"
+        app:graphBackgroundColor="@color/colorBackground"
         app:gridBackgroundColor="#F0F0F0"
-        app:gridInsetLeft="25dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/ecg_plot"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
@@ -85,25 +81,21 @@
         style="@style/FullScreenGraph"
         android:layout_width="fill_parent"
         android:layout_height="100dp"
-        android:layout_marginTop="4dp"
-        app:graphBackgroundColor="@color/colorBackground"
-        app:graphMarginBottom="12dp"
-        app:graphMarginLeft="16dp"
-        app:graphMarginTop="12dp"
-        app:gridBackgroundColor="#F0F0F0"
         app:borderColor="@color/white"
-        app:gridInsetLeft="25dp"
+        app:graphBackgroundColor="@color/colorBackground"
+        app:gridBackgroundColor="#F0F0F0"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/plot"
+        app:layout_constraintBottom_toTopOf="@+id/sinfo"
         app:lineLabelInsetLeft="12dp"
         app:lineLabels="left"
         app:rangeTitle=""
         app:rangeTitleTextColor="@android:color/black"
         app:rangeTitleTextSize="12dp"
         app:renderMode="use_background_thread"
-        app:title="" />
+        app:title=""
+        tools:layout_editor_absoluteY="473dp" />
 
     <TextView
         android:id="@+id/hr"
@@ -152,5 +144,18 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:menu="@menu/bottom_navigation_menu" />
+
+    <TextView
+        android:id="@+id/sinfo"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:gravity="start|top"
+        android:lines="6"
+        android:textColor="@android:color/black"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toTopOf="@+id/bottom_navigation"
+        />
+
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
