@@ -4,17 +4,13 @@ import android.Manifest
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
-import android.content.DialogInterface
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.text.InputType
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
@@ -25,7 +21,6 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.navigation.NavigationBarView
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -38,7 +33,7 @@ class MainActivity : AppCompatActivity() {
 
         //新增getDeviceId方法，在其他类中获取DeviceId
         fun getDeviceId(): String? {
-            return instance?.deviceId
+            return instance?.ppgDeviceId
         }
     }
 
@@ -48,7 +43,9 @@ class MainActivity : AppCompatActivity() {
             Log.w(TAG, "Bluetooth off")
         }
     }
-    private var deviceId: String? = null
+    private var ppgDeviceId: String? = ""
+
+    private val DEFAULT_PPG_DEVICE_ID= "D6E9FA2D"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,7 +70,10 @@ class MainActivity : AppCompatActivity() {
 
 
         sharedPreferences = getPreferences(MODE_PRIVATE)
-        deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
+        ppgDeviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
+        if(ppgDeviceId==null|| ppgDeviceId==""){
+            ppgDeviceId = DEFAULT_PPG_DEVICE_ID
+        }
 
         val setIdButton: Button = findViewById(R.id.buttonSetID)
         val ppgEcgConnectButton: Button = findViewById(R.id.buttonConnectPpg)
@@ -123,14 +123,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun onClickConnectPpgEcg(view: View) {
         checkBT()
-        if (deviceId == null || deviceId == "") {
-            deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
+        if (ppgDeviceId == null || ppgDeviceId == "") {
+            ppgDeviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
             showDialog(view)
         } else {
 //            showToast(getString(R.string.connecting) + " " + deviceId)
             val intent = Intent(this, ECGActivity::class.java)
-            intent.putExtra("id", deviceId)
-            Log.d(TAG, "Navigating to ECGActivity with deviceId: $deviceId")
+            intent.putExtra("id", ppgDeviceId)
+            Log.d(TAG, "Navigating to ECGActivity with deviceId: $ppgDeviceId")
 
             startActivity(intent)
         }
@@ -138,13 +138,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun onClickConnectHr(view: View) {
         checkBT()
-        if (deviceId == null || deviceId == "") {
-            deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
+        if (ppgDeviceId == null || ppgDeviceId == "") {
+            ppgDeviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
             showDialog(view)
         } else {
-            showToast(getString(R.string.connecting) + " " + deviceId)
+            showToast(getString(R.string.connecting) + " " + ppgDeviceId)
             val intent = Intent(this, HRActivity::class.java)
-            intent.putExtra("id", deviceId)
+            intent.putExtra("id", ppgDeviceId)
             startActivity(intent)
         }
     }
@@ -161,8 +161,8 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("OK") { dialog, which ->
                 // Handle OK button press
                 val input = (dialog as AlertDialog).findViewById<EditText>(R.id.input)
-                deviceId = input?.text.toString().uppercase(Locale.getDefault())
-                sharedPreferences.edit().putString(SHARED_PREFS_KEY, deviceId).apply()
+                ppgDeviceId = input?.text.toString().uppercase(Locale.getDefault())
+                sharedPreferences.edit().putString(SHARED_PREFS_KEY, ppgDeviceId).apply()
             }
             .setNegativeButton("Cancel", null) // Dismiss dialog
             .show()
