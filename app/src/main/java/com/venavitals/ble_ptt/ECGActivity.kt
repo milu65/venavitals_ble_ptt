@@ -407,6 +407,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             latestPPGTimestamp /= 1000_000 // us to ms
             latestPPGTimestamp += 946684800000 // set epoch time to unit epoch
             val zonedPPGDateTime = Instant.ofEpochMilli(latestPPGTimestamp).atZone(ZoneId.systemDefault())
+            val zonedSysDateTime = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault())
             val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss:SSS")
 
             //display info
@@ -416,13 +417,16 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                         "\nAverage PPG Sample Rate: %.2f" +
                         "\nAverage ECG Sample Rate: %.2f" +
                         "\nECG-PPG Samples Length Diff: %.2f sec" +
-                        "\nPPG Latest Sample Datetime: %s",
-                ((System.currentTimeMillis() - startTimestamp) / 1000),
+                        "\nPPG Latest Sample Datetime: %s"+
+                        "\nCurrent System Datetime: %s"
+                ,((System.currentTimeMillis() - startTimestamp) / 1000),
                 info.HR,
                 ppgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
                 ecgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
                 (ecgLen - ppgLen),
-                dateTimeFormatter.format(zonedPPGDateTime)
+                dateTimeFormatter.format(zonedPPGDateTime),
+                dateTimeFormatter.format(zonedSysDateTime),
+
             ))
         }catch (e:ConcurrentModificationException){
             e.printStackTrace()
