@@ -1,5 +1,6 @@
 package com.venavitals.ble_ptt
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -18,6 +19,7 @@ import com.polar.sdk.api.model.PolarDeviceInfo
 import com.polar.sdk.api.model.PolarHrData
 import com.polar.sdk.api.model.PolarPpgData
 import com.polar.sdk.api.model.PolarSensorSetting
+import com.venavitals.ble_ptt.signal.Sample
 import com.venavitals.ble_ptt.signal.Utils
 import com.venavitals.ble_ptt.signal.filters.ButterworthBandpassFilter
 import com.venavitals.ble_ptt.uart.UartOld
@@ -25,6 +27,9 @@ import com.venavitals.ble_ptt.uart.UartService
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Collections
 import java.util.Date
 import java.util.UUID
@@ -56,7 +61,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         UartOld()
 
     private var ecgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList()) //TODO: ConcurrentLinkedQueue might be better
-    private var ppgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList())
+    private var ppgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList())
     private var ppgFilteredSamples: ArrayList<Double> = ArrayList()
     private var ecgFilteredSamples: ArrayList<Double> = ArrayList()
 
@@ -261,10 +266,10 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         Log.d(TAG, "file save path: $path");
         val sdf = SimpleDateFormat("yyyy_MMdd_HH:mm:ss")
         val resultdate = Date(System.currentTimeMillis())
-        Utils.saveSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
+        Utils.saveValueSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
         Utils.saveSamples(ppgSamples,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
-        Utils.saveSamples(ecgFilteredSamples,path,sdf.format(resultdate)+"_ecg_filtered_samples_"+ecgSR+".txt")
-        Utils.saveSamples(ppgFilteredSamples,path,sdf.format(resultdate)+"_ppg_filtered_samples_"+ppgSR+".txt")
+        Utils.saveValueSamples(ecgFilteredSamples,path,sdf.format(resultdate)+"_ecg_filtered_samples_"+ecgSR+".txt")
+        Utils.saveValueSamples(ppgFilteredSamples,path,sdf.format(resultdate)+"_ppg_filtered_samples_"+ppgSR+".txt")
     }
 
 
@@ -323,7 +328,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
             for (data in samples) {
                 val value = data.channelSamples[0].toDouble()
-                ppgSamples.add(value)
+                val sample =
+                    Sample(data.timeStamp, value)
+                ppgSamples.add(sample)
             }
 
             //synchronized filtering and plotting
@@ -355,7 +362,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             val ppgPast = DoubleArray(this.ppgPlotterSize)
             idx = 0
             for (i in ppgStopIdx - this.ppgPlotterSize until ppgStopIdx) {
-                ppgPast[idx++] = ppgSamples[i]
+                ppgPast[idx++] = ppgSamples[i].value
             }
             var ppgRes = ButterworthBandpassFilter.concatenate(ppgPast)
             ppgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ppgRes)
@@ -377,7 +384,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
             //update signal info
             updateSignalInfo(String.format(
-                "\nPPG Peaks: %d\t YRange[%f, %f]"+
+                "Peaks\nPPG Peaks: %d\t YRange[%f, %f]"+
                         "\nECG Peaks: %d\t YRange[%f, %f]",
                 info.ppgPeaks,
                 info.ppgMinValue,
@@ -395,22 +402,33 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 ppgFilteredSamples.add(s)
             }
 
+            //prepare ppg time info
+            var latestPPGTimestamp = ppgSamples.last().timestamp //Unit: us; Epoch time for polar is 2000-01-01T00:00:00Z
+            latestPPGTimestamp /= 1000_000 // us to ms
+            latestPPGTimestamp += 946684800000 // set epoch time to unit epoch
+            val zonedPPGDateTime = Instant.ofEpochMilli(latestPPGTimestamp).atZone(ZoneId.systemDefault())
+            val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
             //display info
             updateInfo(String.format(
                 "Filtering...\nDuration: %d sec" +
                         "\nShort Period HR: %.2f"+
                         "\nAverage PPG Sample Rate: %.2f" +
                         "\nAverage ECG Sample Rate: %.2f" +
-                        "\nECG-PPG Samples Length Diff: %.2f sec",
+                        "\nECG-PPG Samples Length Diff: %.2f sec" +
+                        "\nPPG latest sample datetime: %s",
                 ((System.currentTimeMillis() - startTimestamp) / 1000),
                 info.HR,
                 ppgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
                 ecgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
-                (ecgLen - ppgLen)
+                (ecgLen - ppgLen),
+                dateTimeFormatter.format(zonedPPGDateTime)
             ))
         }catch (e:ConcurrentModificationException){
             e.printStackTrace()
         }catch (e:ArrayIndexOutOfBoundsException){
+            e.printStackTrace()
+        }catch (e: RuntimeException){
             e.printStackTrace()
         }
     }

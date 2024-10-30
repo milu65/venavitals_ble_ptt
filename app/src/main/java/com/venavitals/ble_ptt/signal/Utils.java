@@ -16,10 +16,49 @@ import java.util.List;
 import com.github.psambit9791.jdsp.signal.peaks.FindPeak;
 import com.github.psambit9791.jdsp.signal.peaks.Spike;
 
+import org.jetbrains.annotations.NotNull;
+
 public class Utils {
     private static String TAG = "Utils";
 
-    public static void saveSamples(List<Double> samples, String path, String filename) {
+
+    public static void saveSamples(@NotNull List<Sample> samples, @NotNull String path, @NotNull String filename) {
+
+        File dir = new File(path);
+        if (!dir.exists()) {
+            boolean dirCreated = dir.mkdirs();
+            if (!dirCreated) {
+                Log.e(TAG, "Failed to create directory: " + path);
+                return;
+            }
+        }
+
+        File file = new File(dir, filename);
+        try {
+            boolean fileCreated = file.createNewFile();
+            if (!fileCreated && !file.exists()) {
+                Log.e(TAG, "Failed to create file: " + file.getAbsolutePath());
+                return;
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(file);
+                 OutputStreamWriter osw = new OutputStreamWriter(fos);
+                 BufferedWriter bw = new BufferedWriter(osw)) {
+                for (Sample item : samples) {
+                    bw.write(item.timestamp+","+ item.value);
+                    bw.newLine();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            Log.d(TAG, "file saved("+samples.size()+" samples): "+path + "/" + filename);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public static void saveValueSamples(List<Double> samples, String path, String filename) {
         File dir = new File(path);
         if (!dir.exists()) {
             boolean dirCreated = dir.mkdirs();
@@ -47,7 +86,7 @@ public class Utils {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            Log.d(TAG, "file saved("+samples.size()+" samples): "+path + "/" + filename);
+            Log.d(TAG, "file saved("+samples.size()+" value samples): "+path + "/" + filename);
         } catch (IOException e) {
             e.printStackTrace();
         }
