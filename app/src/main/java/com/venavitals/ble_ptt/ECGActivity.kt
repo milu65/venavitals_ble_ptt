@@ -28,6 +28,7 @@ import java.text.SimpleDateFormat
 import java.util.Collections
 import java.util.Date
 import java.util.UUID
+import java.util.concurrent.atomic.LongAdder
 
 
 class ECGActivity : AppCompatActivity(), PlotterListener {
@@ -55,8 +56,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var uart: UartOld =
         UartOld()
 
-    private var ecgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList()) //TODO: ConcurrentLinkedQueue might be better
-    private var ppgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList())
+    private var ecgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList(50000)) //TODO: ConcurrentLinkedQueue might be better
+    private var ppgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList(50000))
     private var ppgFilteredSamples: ArrayList<Double> = ArrayList()
     private var ecgFilteredSamples: ArrayList<Double> = ArrayList()
 
@@ -299,6 +300,10 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var ecgPlotterSize = ecgSR*5
 
 
+    var ppgCounter : LongAdder = LongAdder()
+    var ecgCounter : LongAdder = LongAdder()
+    var testing = false
+
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
         //freeze state
         val ecgSize = ecgSamples.size
@@ -316,11 +321,21 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
                 for (data in samples) {
                     val value = data.channelSamples[0].toDouble()
+                    val timestamp = data.timeStamp
                     ppgPlotter.sendSingleSampleWithoutUpdate(value)
                 }
                 ppgPlotter.update()
                 return
             }
+            if(testing){
+                ppgCounter.add(samples.size.toLong())
+                val a=System.currentTimeMillis()-startTimestamp
+                val o=String.format("ppg: %.2f ecg: %.2f",ppgCounter.toDouble() / (a / 1000),ecgCounter.toDouble() / (a / 1000))
+                Log.e(TAG,o)
+                Log.i(TAG,ecgCounter.toString()+" "+ppgCounter.toString())
+                return
+            }
+
             for (data in samples) {
                 val value = data.channelSamples[0].toDouble()
                 ppgSamples.add(value)
@@ -415,9 +430,20 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
     }
 
+    private val ecgBuffer: ArrayList<Double> = ArrayList()
 
     private fun plotECG(num: Double) {
         if(isSynchronized){
+
+            if(testing){
+                ecgCounter.add(1)
+                return
+            }
+//            ecgBuffer.add(num)
+//            if(ecgBuffer.size>50){
+//                ecgSamples.addAll(ecgBuffer)
+//                ecgBuffer.clear()
+//            }
             ecgSamples.add(num)
         }else{
             ecgPlotter.sendSingleSample(num)
