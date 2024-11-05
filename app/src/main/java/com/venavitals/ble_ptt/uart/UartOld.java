@@ -17,7 +17,10 @@ import android.util.Log;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.venavitals.ble_ptt.signal.Sample;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -49,7 +52,7 @@ public class UartOld{
 
     private UartService mService;
 
-    Consumer<Double> callback;
+    Consumer<Sample> callback;
 
     public ServiceConnection mServiceConnection = new ServiceConnection() {
         @Override
@@ -104,8 +107,9 @@ public class UartOld{
 
                 if (action.equals(UartService.ACTION_DATA_AVAILABLE)) {// 如果动作是数据可用的广播动作
 //                    Log.d(TAG,"ECG data available");
-                    // 从意图中获取蓝牙传输的字节数据
+                    // get bytes data from intent
                     txValue = intent.getByteArrayExtra(UartService.EXTRA_DATA);
+//                    System.out.println(Arrays.toString(txValue));
 
                     // 循环处理接收到的字节数组
                     for (i = 0; i < txValue.length; i++) {
@@ -121,35 +125,29 @@ public class UartOld{
                         }
                     }
 
-                    // 处理字节数组中的数据，解析为ECG信号
-                    for (i = 1; i < (txValue.length - 1) / 3; i++) {
-                        double temp_value = 0;
-                        // 将三个字节的数据组合成一个24位的整数
-                        temp_value = 65536 * a[3 * i] + 256 * a[3 * i + 1] + a[(3 * i) + 2];
 
-                        // 如果数值是负数，则转换为补码
-                        if (temp_value >= 8388608) {
-                            temp_value = temp_value - 16777216;
-                        }
+                    /*
+                    Device info 3 bytes
+                    ECG C1 3 bytes
+                    ECG C2 3 bytes
+                    Timestamp 4 bytes // 32768 = 1 sec
+                    Battery level 1 bytes
+                    Idx 1 bytes
+                     */
 
-                    if (i%2==1) {// 隔一个取一个
-                        ch02Value = temp_value * 2.5 / pow(2, 23);
-                        samples.add(ch02Value);
-                        callback.accept(ch02Value);
-//                        ecgActivity.plotECG((float) ch02Value);
-//                        line_series_03.appendData(new DataPoint(lastX2++, temp_value * 4.5 / (pow(2, 23) - 1)), true, 400);
-                        }
-
-//                    // 根据不同的通道，将数据值处理并添加到相应的图表数据系列中
-//                    if (i == 1) {
-//                        ch02Value = temp_value * 2.5 / pow(2, 23);
-//                        line_series_03.appendData(new DataPoint(lastX2++, temp_value * 4.5 / (pow(2, 23) - 1)), true, 400);
-//                    } else if (i == 2) {
-//                        ch03Value = temp_value * 2.5 / pow(2, 23);
-//                        line_series_04.appendData(new DataPoint(lastX3++, temp_value * 4.5 / (pow(2, 23) - 1)), true, 400);
-//                    }
+                    // ch1
+                    int offsetCh1 = 3;
+                    double c1 = 65536 * a[offsetCh1] + 256 * a[offsetCh1 + 1] + a[offsetCh1 + 2];
+                    if (c1 >= 8388608) {// 如果数值是负数，则转换为补码
+                        c1 = c1 - 16777216;
                     }
+                    c1 = c1 * 2.5 / pow(2, 23);
 
+                    // timestamp
+                    int offsetTimestamp = 9;
+                    int ts =a[offsetTimestamp]+a[offsetTimestamp+1]<<8+a[offsetTimestamp+2]<<16+a[offsetTimestamp+3]<<24;
+                    Sample sample=new Sample((long) ts,c1);
+                    callback.accept(sample);
                 }
 
 
@@ -174,7 +172,7 @@ public class UartOld{
         return intentFilter;
     }
 
-    public void setCallback(Consumer<Double> callback){
+    public void setCallback(Consumer<Sample> callback){
         this.callback=callback;
     }
 

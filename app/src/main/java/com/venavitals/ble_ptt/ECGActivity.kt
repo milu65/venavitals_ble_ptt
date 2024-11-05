@@ -438,7 +438,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     }
 
 
-    private fun plotECG(num: Double) {
+    private fun plotECG(sample: Sample) {
+        val num=sample.value
         if(isSynchronized){
             ecgSamples.add(num)
         }else{
