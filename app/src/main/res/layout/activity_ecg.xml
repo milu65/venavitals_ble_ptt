@@ -46,9 +46,9 @@
     <TextView
         android:id="@+id/info"
         android:layout_width="match_parent"
-        android:layout_height="140dp"
+        android:layout_height="160dp"
         android:gravity="start|bottom"
-        android:lines="8"
+        android:lines="10"
         android:textColor="@android:color/black"
         android:textSize="12sp"
         app:layout_constraintTop_toBottomOf="@+id/rr"

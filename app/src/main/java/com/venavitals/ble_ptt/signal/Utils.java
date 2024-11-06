@@ -99,11 +99,11 @@ public class Utils {
         FindPeak ecgFp = new FindPeak(ecgSamples);
         Spike ecgSpikes = ecgFp.getSpikes();
 //        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(0.01, 1.0, "right");
-        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(0.005, 1.0, "right");
+        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(0.00005, 1.0, "right");
 
         FindPeak ppgFp = new FindPeak(ppgSamples);
         Spike ppgSpikes = ppgFp.getSpikes();
-        int[] ppgOutRightFilter = ppgSpikes.filterByProperty(400.0, 20000.0, "right");
+        int[] ppgOutRightFilter = ppgSpikes.filterByProperty(1000.0, 20000.0, "left");
 
 
         // log debug peaks and samples info

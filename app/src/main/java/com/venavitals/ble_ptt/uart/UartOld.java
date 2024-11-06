@@ -20,7 +20,6 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.venavitals.ble_ptt.signal.Sample;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -32,8 +31,6 @@ public class UartOld{
     private int mState = UART_PROFILE_DISCONNECTED;
     int lengthTxtValue = 16;
     byte[] txValue;
-    double ch01Value = 0;
-    double ch02Value = 0;
 
     int[] a = new int[lengthTxtValue];
 
@@ -80,6 +77,14 @@ public class UartOld{
             shutdown();
         }
     };
+    private int lastIdx =-1;
+    private long lastTimestamp =-1;
+    private long startTimestamp=-1;
+    private long count=0;
+
+    private int loop=0;
+
+    private static long MAX_ECG_TIMESTAMP = 512000;
 
     private BroadcastReceiver uartStatusChangeReceiver = new BroadcastReceiver() {
 
@@ -109,32 +114,22 @@ public class UartOld{
 //                    Log.d(TAG,"ECG data available");
                     // get bytes data from intent
                     txValue = intent.getByteArrayExtra(UartService.EXTRA_DATA);
-//                    System.out.println(Arrays.toString(txValue));
 
                     // 循环处理接收到的字节数组
                     for (i = 0; i < txValue.length; i++) {
                         // 将字节数组中的每个字节转为无符号整数存储在数组a中
                         a[i] = 0xFF & txValue[i];
-
-                        // 如果是最后一个字节
-                        if (i == txValue.length - 1) {
-                            // 记录ch01通道的值
-                            ch01Value = a[i];
-                            // 将数据点添加到ch01通道的图表数据系列中
-//                        line_series_02.appendData(new DataPoint(lastX1++, a[i]), true, 400);
-                        }
                     }
 
 
                     /*
-                    Device info 3 bytes
-                    ECG C1 3 bytes
-                    ECG C2 3 bytes
-                    Timestamp 4 bytes // 32768 = 1 sec
-                    Battery level 1 bytes
-                    Idx 1 bytes
+                    Device info 0-2 3 bytes
+                    ECG C1 3-5 3 bytes
+                    ECG C2 6-8 3 bytes
+                    Timestamp 9-12 4 bytes // 32768 = 1 sec
+                    Battery level 13 1 bytes
+                    Idx 14 1 bytes
                      */
-
                     // ch1
                     int offsetCh1 = 3;
                     double c1 = 65536 * a[offsetCh1] + 256 * a[offsetCh1 + 1] + a[offsetCh1 + 2];
@@ -145,8 +140,49 @@ public class UartOld{
 
                     // timestamp
                     int offsetTimestamp = 9;
-                    int ts =a[offsetTimestamp]+a[offsetTimestamp+1]<<8+a[offsetTimestamp+2]<<16+a[offsetTimestamp+3]<<24;
-                    Sample sample=new Sample((long) ts,c1);
+                    int ts =a[offsetTimestamp];
+                    ts+=a[offsetTimestamp+1]<<8;
+                    ts+=a[offsetTimestamp+2]<<16;
+                    ts+=a[offsetTimestamp+3]<<24;
+                    double t=(long)ts*1000/32768.0;
+                    long timestamp = Math.round(t);
+                    Sample sample=new Sample((long) loop *MAX_ECG_TIMESTAMP+timestamp,c1);
+
+                    if(ts<0){
+                        Log.e(TAG,"Wrong timestamp: "+timestamp);
+                    }
+
+                    // battery level
+                    int offsetBattery = 13;
+                    int batteryLevel=a[offsetBattery];
+
+                    // idx
+                    int offsetIdx = 14;
+                    int idx=a[offsetIdx];
+
+                    double SR;
+                    count++;
+                    if(startTimestamp==-1){
+                        startTimestamp=System.currentTimeMillis();
+                    }
+                    SR= (double) count /(System.currentTimeMillis()-startTimestamp)*1000;
+//                    Log.d(TAG,batteryLevel+"\t"+idx+"\t"+timestamp+"\t"+c1+"\t\tsr:"+SR);
+
+                    if (lastIdx != -1) {
+                        if ((lastIdx + 1) % 256 != idx) {
+                            Log.e(TAG, "ECG Gap Found: " + lastIdx + " " + idx);
+                        }
+                    }
+                    lastIdx =idx;
+
+                    if(lastTimestamp != -1){
+                        if(lastTimestamp>timestamp){
+                            sample.timestamp+=MAX_ECG_TIMESTAMP;
+                            loop++;
+                        }
+                    }
+                    lastTimestamp=timestamp;
+
                     callback.accept(sample);
                 }
 

@@ -1,6 +1,5 @@
 package com.venavitals.ble_ptt
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -60,13 +59,16 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var uart: UartOld =
         UartOld()
 
-    private var ecgSamples: MutableList<Double> = Collections.synchronizedList(ArrayList()) //TODO: ConcurrentLinkedQueue might be better
+    private var ecgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList()) //TODO: ConcurrentLinkedQueue might be better
     private var ppgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList())
     private var ppgFilteredSamples: ArrayList<Double> = ArrayList()
     private var ecgFilteredSamples: ArrayList<Double> = ArrayList()
+    private var hrSamples: ArrayList<Sample> = ArrayList()
+    private var pttSamples: ArrayList<Sample> = ArrayList()
 
     @Volatile private var startTimestamp: Long = 0
     @Volatile private var isSynchronized:Boolean =false
+    @Volatile private var ecgTimestampOffset = 0L
 
     private var ecgSR: Int = 250
     private var ppgSR: Int = 55  //28Hz, 44Hz, 55Hz, 135Hz, 176Hz
@@ -261,13 +263,21 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         api.shutDown()
 
 
-        val path = getExternalFilesDir(null).toString();
 //        path = Environment.getExternalStorageDirectory().toString();
-        Log.d(TAG, "file save path: $path");
-        val sdf = SimpleDateFormat("yyyy_MMdd_HH:mm:ss")
+        val sdf = SimpleDateFormat("yyyy_MM_dd_HH:mm:ss")
         val resultdate = Date(System.currentTimeMillis())
-        Utils.saveValueSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
+        val path = getExternalFilesDir(null).toString()+"/"+sdf.format(resultdate);
+        Log.d(TAG, "file save path: $path");
+
+        for(sample in ppgSamples){
+            sample.timestamp=polarTimestamp2UnixTimestamp(sample.timestamp)
+        }
+
+
+        Utils.saveSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
         Utils.saveSamples(ppgSamples,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
+        Utils.saveSamples(hrSamples,path,sdf.format(resultdate)+"_hr_samples_"+ecgSR+".txt")
+        Utils.saveSamples(pttSamples,path,sdf.format(resultdate)+"_ptt_samples_"+ppgSR+".txt")
         Utils.saveValueSamples(ecgFilteredSamples,path,sdf.format(resultdate)+"_ecg_filtered_samples_"+ecgSR+".txt")
         Utils.saveValueSamples(ppgFilteredSamples,path,sdf.format(resultdate)+"_ppg_filtered_samples_"+ppgSR+".txt")
     }
@@ -303,6 +313,13 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var ppgPlotterSize = ppgSR*5
     private var ecgPlotterSize = ecgSR*5
 
+    private fun polarTimestamp2UnixTimestamp(vv:Long): Long {
+        //Unit: us; Epoch time for polar is 2000-01-01T00:00:00Z
+        var v = vv
+        v /= 1000_000 // us to ms
+        v += 946684800000 // set epoch time to unit epoch
+        return v
+    }
 
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
         //freeze state
@@ -320,14 +337,14 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 }
 
                 for (data in samples) {
-                    val value = data.channelSamples[0].toDouble()
+                    val value = - data.channelSamples[0].toDouble()
                     ppgPlotter.sendSingleSampleWithoutUpdate(value)
                 }
                 ppgPlotter.update()
                 return
             }
             for (data in samples) {
-                val value = data.channelSamples[0].toDouble()
+                val value = - data.channelSamples[0].toDouble()
                 val sample =
                     Sample(data.timeStamp, value)
                 ppgSamples.add(sample)
@@ -336,34 +353,42 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             //synchronized filtering and plotting
             if (ecgSize < ecgPlotterSize || ppgSize < ppgPlotterSize) {
                 for (data in samples) {
-                    val value = data.channelSamples[0].toDouble()
+                    val value = - data.channelSamples[0].toDouble()
                     ppgPlotter.sendSingleSampleWithoutUpdate(value)
                 }
                 ppgPlotter.update()
-                ecgPlotter.sendSamples(ecgSamples.toDoubleArray())
+                for(sample in ecgSamples){
+                    ecgPlotter.sendSingleSampleWithoutUpdate(sample.value)
+                }
+                ecgPlotter.update()
                 return
             }
-            val ecgLen = ecgSize / ecgSR.toDouble()
-            val ppgLen = ppgSize / ppgSR.toDouble()
-            val stopLen = Math.min(ppgLen, ecgLen)
-            val ppgStopIdx = (ppgSR * stopLen).toInt() - 1
-            val ecgStopIdx = (ecgSR * stopLen).toInt() - 1
 
             val ecgPast = DoubleArray(ecgPlotterSize)
-            var idx = 0
-            for (i in ecgStopIdx - ecgPlotterSize until ecgStopIdx) {
-                ecgPast[idx++] = ecgSamples[i]
+
+            var ecgEnd=ecgSize-1
+            while(ecgSamples[ecgEnd].timestamp>polarTimestamp2UnixTimestamp(ppgSamples[ppgSize-1].timestamp)){
+                ecgEnd--
             }
+            ecgEnd+=1
+            for(i in ecgEnd-ecgPlotterSize until ecgEnd){
+                ecgPast[i-(ecgEnd-ecgPlotterSize)]=ecgSamples[i].value
+            }
+
             var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
             ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgRes)
             ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
 
 
             val ppgPast = DoubleArray(this.ppgPlotterSize)
-            idx = 0
-            for (i in ppgStopIdx - this.ppgPlotterSize until ppgStopIdx) {
+            var idx = 0
+            for (i in ppgSize - this.ppgPlotterSize until ppgSize) {
                 ppgPast[idx++] = ppgSamples[i].value
             }
+
+            Log.d(TAG,ecgSamples[ecgEnd-ecgPlotterSize].timestamp.toString()+" ecg "+ecgSamples[ecgEnd-1].timestamp)
+            Log.d(TAG,polarTimestamp2UnixTimestamp(ppgSamples[ppgSize-ppgPlotterSize].timestamp).toString()+" ppg "+polarTimestamp2UnixTimestamp(ppgSamples[ppgSize-1].timestamp))
+
             var ppgRes = ButterworthBandpassFilter.concatenate(ppgPast)
             ppgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ppgRes)
             ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, this.ppgPlotterSize / 2)
@@ -375,12 +400,17 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             //calc ptt
             val info= Utils.calcPTT(ecgRes,ppgRes)
 
+            hrSamples.add(Sample(timestamp,info.HR))
+            pttSamples.add(Sample(timestamp,info.PTT))
+
             //update ptt
-            if(info.PTT.toInt() !=0){
+            if(info.PTT.toInt() > 0){
                 updatePtt(String.format("%3.0f ms",info.PTT))
             }else{
                 updatePtt("-")
             }
+
+            Log.d(TAG,"PPT: "+info.PTT)
 
             //update signal info
             updateSignalInfo(String.format(
@@ -403,10 +433,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             //prepare ppg time info
-            var latestPPGTimestamp = ppgSamples.last().timestamp //Unit: us; Epoch time for polar is 2000-01-01T00:00:00Z
-            latestPPGTimestamp /= 1000_000 // us to ms
-            latestPPGTimestamp += 946684800000 // set epoch time to unit epoch
+            val latestPPGTimestamp = polarTimestamp2UnixTimestamp(ppgSamples.last().timestamp)
             val zonedPPGDateTime = Instant.ofEpochMilli(latestPPGTimestamp).atZone(ZoneId.systemDefault())
+            val zonedECGDateTime = Instant.ofEpochMilli(ecgSamples.last().timestamp).atZone(ZoneId.systemDefault())
             val zonedSysDateTime = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault())
             val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss:SSS")
 
@@ -414,17 +443,13 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             updateInfo(String.format(
                 "Filtering...\nDuration: %d sec" +
                         "\nShort Period HR: %.2f"+
-                        "\nAverage PPG Sample Rate: %.2f" +
-                        "\nAverage ECG Sample Rate: %.2f" +
-                        "\nECG-PPG Samples Length Diff: %.2f sec" +
                         "\nPPG Latest Sample Datetime: %s"+
+                        "\nECG Latest Sample Datetime: %s"+
                         "\nCurrent System Datetime: %s"
                 ,((System.currentTimeMillis() - startTimestamp) / 1000),
                 info.HR,
-                ppgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
-                ecgSize.toDouble() / ((timestamp - startTimestamp) / 1000),
-                (ecgLen - ppgLen),
                 dateTimeFormatter.format(zonedPPGDateTime),
+                dateTimeFormatter.format(zonedECGDateTime),
                 dateTimeFormatter.format(zonedSysDateTime),
 
             ))
@@ -441,8 +466,10 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private fun plotECG(sample: Sample) {
         val num=sample.value
         if(isSynchronized){
-            ecgSamples.add(num)
+            sample.timestamp = sample.timestamp - ecgTimestampOffset + startTimestamp
+            ecgSamples.add(sample)
         }else{
+            ecgTimestampOffset=sample.timestamp
             ecgPlotter.sendSingleSample(num)
         }
     }
