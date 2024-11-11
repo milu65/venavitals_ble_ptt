@@ -95,37 +95,41 @@ public class Utils {
 
     public static SignalInfo calcPTT(double[] ecgSamples, double[] ppgSamples) {
         SignalInfo info=new SignalInfo();
-        // Find peaks
-        FindPeak ecgFp = new FindPeak(ecgSamples);
-        Spike ecgSpikes = ecgFp.getSpikes();
-//        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(0.01, 1.0, "right");
-        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(0.00005, 1.0, "right");
-
-        FindPeak ppgFp = new FindPeak(ppgSamples);
-        Spike ppgSpikes = ppgFp.getSpikes();
-        int[] ppgOutRightFilter = ppgSpikes.filterByProperty(1000.0, 20000.0, "left");
-
-
         // log debug peaks and samples info
         double max=0;
         double min=0;
-        for (int i = 0; i < ecgSamples.length; i++) {
-            max=Math.max(max,ecgSamples[i]);
-            min=Math.min(min,ecgSamples[i]);
+        for (double ecgSample : ecgSamples) {
+            max = Math.max(max, ecgSample);
+            min = Math.min(min, ecgSample);
         }
         Log.d(TAG,"ECG min: "+min+" max: "+max);
         info.ecgMaxValue=max;
         info.ecgMinValue=min;
 
+        double ecgThreshold=(max-min)*0.8;
+
         min=0;
         max=0;
-        for (int i = 0; i < ppgSamples.length; i++) {
-            max=Math.max(max,ppgSamples[i]);
-            min=Math.min(min,ppgSamples[i]);
+        for (double ppgSample : ppgSamples) {
+            max = Math.max(max, ppgSample);
+            min = Math.min(min, ppgSample);
         }
+        Log.d(TAG,"PPG min: "+min+" max: "+max);
         info.ppgMaxValue=max;
         info.ppgMinValue=min;
-        Log.d(TAG,"PPG min: "+min+" max: "+max);
+
+        double ppgThreshold=(max-min)*0.8;
+
+
+
+        // Find peaks
+        FindPeak ecgFp = new FindPeak(ecgSamples);
+        Spike ecgSpikes = ecgFp.getSpikes();
+        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(ecgThreshold, 1.0, "right");
+
+        FindPeak ppgFp = new FindPeak(ppgSamples);
+        Spike ppgSpikes = ppgFp.getSpikes();
+        int[] ppgOutRightFilter = ppgSpikes.filterByProperty(500.0, 20000.0, "left");
 
         info.ppgPeaks=ppgOutRightFilter.length;
         info.ecgPeaks=ecgOutRightFilter.length;
