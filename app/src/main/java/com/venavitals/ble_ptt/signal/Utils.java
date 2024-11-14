@@ -129,7 +129,7 @@ public class Utils {
 
         FindPeak ppgFp = new FindPeak(ppgSamples);
         Spike ppgSpikes = ppgFp.getSpikes();
-        int[] ppgOutRightFilter = ppgSpikes.filterByProperty(500.0, 20000.0, "left");
+        int[] ppgOutRightFilter = ppgSpikes.filterByProperty(300.0, 20000.0, "left");
 
         info.ppgPeaks=ppgOutRightFilter.length;
         info.ecgPeaks=ecgOutRightFilter.length;

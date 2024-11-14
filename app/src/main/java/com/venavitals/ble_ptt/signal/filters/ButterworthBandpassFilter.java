@@ -89,6 +89,20 @@ public class ButterworthBandpassFilter {
         double[] a = {1.0000,-0.3195,-1.4800,0.1939,0.6160};
         return filtfilt(b, a, x);
     }
+
+    public static double[] ppg176hzBandpassFilter(double[] x){
+        /* MATLAB
+            fs=176;
+            f_low = 1.2;
+            f_high = 10;
+            [b, a] = butter(2, [f_low, f_high]/(fs/2), 'bandpass');
+         */
+
+        //Order 2
+        double[] b = { 0.0201,0,-0.0402,0,0.0201};
+        double[] a = {1.0000,-3.5336,4.7143,-2.8218,0.6414};
+        return filtfilt(b, a, x);
+    }
     public static double[] ecg250hzBandpassFilter(double[] x){
         /* MATLAB
             fs = 250;

@@ -163,26 +163,19 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                         streamPPG()
                         streamHR()
                     }
-//                    PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_DEVICE_TIME_SETUP-> {
-//                        val calendar: Calendar = Calendar.getInstance().apply {
-//                            timeInMillis = System.currentTimeMillis()+2050
-//                        }
-//                        api.setLocalTime(ppgDeviceId,calendar).subscribe({
-//                            println("time set")
-//                        })
-//                        while(true){
-//                            Thread.sleep(1000)
-//                            val timestampO=System.currentTimeMillis()
-//                            api.getLocalTime(ppgDeviceId).subscribe({ calendar ->
-//                                val timestamp = calendar.timeInMillis-timestampO // 转换为时间戳
-//                                println("时间戳差: $timestamp")
-//                                println("response time: "+(System.currentTimeMillis()-timestampO))
-//                            }, { throwable ->
-//                                println("发生错误: ${throwable.message}")
-//                            })
-//
-//                        }
-//                    }
+                    PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_SDK_MODE->{
+//                        api.enableSDKMode(ppgDeviceId)
+//                            .observeOn(AndroidSchedulers.mainThread())
+//                            .subscribe(
+//                                {
+//                                    Log.d(TAG, "SDK mode enabled")
+//                                },
+//                                { error ->
+//                                    val errorString = "SDK mode enable failed: $error"
+//                                    Log.e(TAG, errorString)
+//                                }
+//                            )
+                    }
                     else -> {}
                 }
             }
@@ -325,10 +318,21 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                     if (polarPpgData.type == PolarPpgData.PpgDataType.PPG3_AMBIENT1) {
                         assert(polarPpgData.samples.isNotEmpty())
                         if(ppgFirstSampleTimestamp==0L){
-                            Log.e(TAG, (System.currentTimeMillis()-st).toString())
+                            val et=System.currentTimeMillis()
+                            val rt=et-st
+                            Log.e(TAG, "Stream PPG RT: "+rt.toString()+" ET: "+et.toString()+" Pkg size: "+polarPpgData.samples.size)
+                            if(rt<2310){
+                                Log.e(TAG, "can not sync signals")
+//                                runOnUiThread {
+//                                    getOnBackPressedDispatcher().onBackPressed()
+//                                }
+//                                return@subscribe
+                            }
+
                             val pkgTimeLength = ((polarPpgData.samples.size.toDouble())/ppgSR*1000).toLong()
-                            ppgAdjustedFirstSampleTimestamp = System.currentTimeMillis()-pkgTimeLength-ppgFirstSampleTimestampOffset
-                            ppgAdjustedFirstSampleTimestamp = st+1500
+//                            ppgAdjustedFirstSampleTimestamp = System.currentTimeMillis()-pkgTimeLength-ppgFirstSampleTimestampOffset
+                            ppgAdjustedFirstSampleTimestamp = st+(rt-(215+pkgTimeLength))
+                            ppgAdjustedFirstSampleTimestamp = et-225-pkgTimeLength
                             ppgFirstSampleTimestamp = polarPpgData.samples[0].timeStamp
                         }
                         plotPPG(polarPpgData.samples)
@@ -380,8 +384,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
             val ecgPast = DoubleArray(ecgPlotterSize)
 
-            println(ecgSamples.last().timestamp.toString()+" ecg")
-            println(ppgSamples.last().timestamp.toString()+" ppg")
+//            println(ecgSamples.last().timestamp.toString()+" ecg")
+//            println(ppgSamples.last().timestamp.toString()+" ppg")
 
             var ecgEnd=ecgSamples.size-1
             while(ecgEnd>=0&&ecgSamples[ecgEnd].timestamp>(ppgSamples[ppgSize-1].timestamp)){
@@ -394,7 +398,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
-            ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgRes)
+//            ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgRes)
             ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
 
 
@@ -405,7 +409,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             var ppgRes = ButterworthBandpassFilter.concatenate(ppgPast)
-            ppgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ppgRes)
+//            ppgRes = ButterworthBandpassFilter.ppg176hzBandpassFilter(ppgRes)
+//            ppgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ppgRes)
             ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, this.ppgPlotterSize / 2)
 
             //plot filtered ppg and ecg
