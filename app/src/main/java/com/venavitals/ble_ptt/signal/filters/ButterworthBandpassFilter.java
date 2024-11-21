@@ -3,7 +3,7 @@ package com.venavitals.ble_ptt.signal.filters;
 import java.util.Arrays;
 
 public class ButterworthBandpassFilter {
-    public static int PPG_SR=55;
+    public static int PPG_SR=176;  //28Hz, 44Hz, 55Hz, 135Hz, 176Hz
     public static int ECG_SR=250;
 
     public static double[] concatenate(double[]arr){ //mirror padding
@@ -73,6 +73,16 @@ public class ButterworthBandpassFilter {
         return reversed;
     }
 
+    public static double[] ppgBandpassFilter(double[]x){
+        if(PPG_SR==176){
+            return ppg176hzBandpassFilter(x);
+        }else if(PPG_SR==55){
+            return ppg55hzBandpassFilter(x);
+        }else {
+            return ppg55hzBandpassFilter(x);
+        }
+    }
+
     public static double[] ppg55hzBandpassFilter(double[] x){
         /* MATLAB
             fs=55;
@@ -85,22 +95,26 @@ public class ButterworthBandpassFilter {
 //        double[] a = {1.0000,-0.1972,-0.7049};
 
         //Order 2
-        double[] b = {0.7845,0,-1.5690,0,0.7845};
-        double[] a = {1.0000,-0.3195,-1.4800,0.1939,0.6160};
+//        double[] b = {0.7845,0,-1.5690,0,0.7845};
+//        double[] a = {1.0000,-0.3195,-1.4800,0.1939,0.6160};
+
+//        1.2-5
+        double[] b = {0.0357,0,-0.0715,0,0.0357};
+        double[] a = {1.0000,-3.2642,4.1108,-2.3835,0.5415};
         return filtfilt(b, a, x);
     }
 
     public static double[] ppg176hzBandpassFilter(double[] x){
         /* MATLAB
             fs=176;
-            f_low = 1.2;
-            f_high = 10;
+            f_low = 1;
+            f_high = 5;
             [b, a] = butter(2, [f_low, f_high]/(fs/2), 'bandpass');
          */
 
         //Order 2
-        double[] b = { 0.0201,0,-0.0402,0,0.0201};
-        double[] a = {1.0000,-3.5336,4.7143,-2.8218,0.6414};
+        double[] b = {0.0046,0,-0.0092,0,0.0046};
+        double[] a = {1.0000,-3.7865,5.3914,-3.4220,0.8171};
         return filtfilt(b, a, x);
     }
     public static double[] ecg250hzBandpassFilter(double[] x){

@@ -3,6 +3,8 @@ package com.venavitals.ble_ptt
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -10,6 +12,7 @@ import com.androidplot.xy.BoundaryMode
 import com.androidplot.xy.StepMode
 import com.androidplot.xy.XYPlot
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.polar.sdk.api.PolarBleApi
 import com.polar.sdk.api.PolarBleApiCallback
 import com.polar.sdk.api.PolarBleApiDefaultImpl.defaultImplementation
@@ -49,6 +52,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private lateinit var textViewPtt: TextView
     private lateinit var textViewInfo: TextView
     private lateinit var textViewSignalInfo: TextView
+    private lateinit var button: Button
+    private lateinit var button2: Button
     private lateinit var ppgPlot: XYPlot
     private lateinit var ecgPlot: XYPlot
     private lateinit var ppgPlotter: EcgPlotter
@@ -61,7 +66,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         UartOld()
 
     private var ecgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList()) //TODO: ConcurrentLinkedQueue might be better
-    private var ppgSamples: ArrayList<Sample> = ArrayList()
+    private var ppgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList())
     private var ppgFilteredSamples: ArrayList<Double> = ArrayList()
     private var ecgFilteredSamples: ArrayList<Double> = ArrayList()
     private var hrSamples: ArrayList<Sample> = ArrayList()
@@ -72,11 +77,11 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var ecgFirstSampleTimestamp = 0L
     private val ecgFirstSampleTimestampOffset: Long = 20L
     private var ppgFirstSampleTimestamp: Long = 0L
-    private val ppgFirstSampleTimestampOffset: Long = 250L
     private var ppgAdjustedFirstSampleTimestamp: Long = 0L
+    @Volatile private var offset: Long =0
 
-    private var ecgSR: Int = 250
-    private var ppgSR: Int = 55  //28Hz, 44Hz, 55Hz, 135Hz, 176Hz
+    private var ecgSR: Int = ButterworthBandpassFilter.ECG_SR
+    private var ppgSR: Int = ButterworthBandpassFilter.PPG_SR
 
     private fun updateSignalInfo(text:String){
         runOnUiThread{
@@ -94,6 +99,92 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         runOnUiThread{
             textViewPtt.text=text
         }
+    }
+
+    private fun syncSignals(){
+        if (ecgSamples.size < ecgPlotterSize+ecgSR || ppgSamples.size < ppgPlotterSize+ppgSR) {
+            Toast.makeText(this, "Try again", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val ecgSize=ecgSamples.size
+        var ecgTimestamp=0L
+        var ecgSum=0.0
+        var count=0
+        for(i in ecgSize-ecgPlotterSize until ecgSize){
+            val sample=ecgSamples[i]
+            if(sample.value>0.001||sample.value<0){
+                continue
+            }
+            ecgSum+=sample.value
+            count++
+            if(sample.value/(ecgSum/count)>10){
+                ecgTimestamp=sample.timestamp
+                break
+            }
+        }
+
+        val ppgSize=ppgSamples.size
+        var ppgTimestamp=0L
+        var ppgSum=0.0
+        count=0
+        for (i in ppgSize - this.ppgPlotterSize until ppgSize) {
+            val sample=ppgSamples[i]
+            ppgSum+=sample.value
+            count++
+            if((ppgSum/count)-sample.value>100000){
+                ppgTimestamp=sample.timestamp
+                break
+            }
+        }
+        Log.i(TAG,"Sync "+ecgTimestamp.toString()+"-"+ppgTimestamp+"="+(ecgTimestamp-ppgTimestamp))
+        if(ecgTimestamp==0L||ppgTimestamp==0L){
+            Toast.makeText(this, "Motion Artifacts did not found. Try again.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+
+        val newOffset=ecgTimestamp-(ppgTimestamp-offset)
+        if(offset==0L){
+            if(newOffset>3000||newOffset<=0){
+                Toast.makeText(this, "ppgOffset did not change", Toast.LENGTH_LONG).show()
+                return
+            }
+        }else{
+            if(Math.abs(newOffset)>3000){
+                Toast.makeText(this, "ppgOffset did not change", Toast.LENGTH_LONG).show()
+                return
+            }
+        }
+        Toast.makeText(this, "ppgOffset from "+offset+" set to "+newOffset+" diff="+(offset-newOffset), Toast.LENGTH_LONG).show()
+        offset=newOffset
+    }
+
+    private fun showDialog() {
+        val sdf = SimpleDateFormat("yyyy_MM_dd_HH:mm:ss")
+        val resultdate = Date(System.currentTimeMillis())
+        val path = getExternalFilesDir(null).toString()+"/"+sdf.format(resultdate)
+        val al=ArrayList(ecgSamples)
+        val al2=ArrayList(ppgSamples)
+        Utils.saveSamples(al,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
+        Utils.saveSamples(al2,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
+
+        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
+        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Offset = "+offset+"; Enter new offset: ")
+            .setView(R.layout.device_id_dialog_layout)
+            .setPositiveButton("OK") { dialog, which ->
+                val input = (dialog as androidx.appcompat.app.AlertDialog).findViewById<EditText>(R.id.input)
+                try {
+                    offset=input?.text.toString().toLong()
+                }catch (e:Exception){
+
+                }
+            }
+            .setNegativeButton("Cancel", null) // Dismiss dialog
+            .show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -123,6 +214,11 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         ppgPlot = findViewById(R.id.plot)
         ecgPlot = findViewById(R.id.ecg_plot)
 
+        button = findViewById(R.id.button)
+        button.setOnClickListener{syncSignals()}
+        button2 = findViewById(R.id.button2)
+        button2.setOnClickListener{showDialog()}
+
 
 
 
@@ -133,7 +229,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 PolarBleApi.PolarBleSdkFeature.FEATURE_BATTERY_INFO,
                 PolarBleApi.PolarBleSdkFeature.FEATURE_DEVICE_INFO,
                 PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_SDK_MODE,
-                PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_DEVICE_TIME_SETUP
             )
         )
         api.setApiCallback(object : PolarBleApiCallback() {
@@ -160,21 +255,21 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 when (feature) {
                     PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING -> {
 
-                        streamPPG()
                         streamHR()
                     }
                     PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_SDK_MODE->{
-//                        api.enableSDKMode(ppgDeviceId)
-//                            .observeOn(AndroidSchedulers.mainThread())
-//                            .subscribe(
-//                                {
-//                                    Log.d(TAG, "SDK mode enabled")
-//                                },
-//                                { error ->
-//                                    val errorString = "SDK mode enable failed: $error"
-//                                    Log.e(TAG, errorString)
-//                                }
-//                            )
+                        api.enableSDKMode(ppgDeviceId)
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(
+                                {
+                                    Log.d(TAG, "SDK mode enabled")
+                                    streamPPG()
+                                },
+                                { error ->
+                                    val errorString = "SDK mode enable failed: $error"
+                                    Log.e(TAG, errorString)
+                                }
+                            )
                     }
                     else -> {}
                 }
@@ -299,6 +394,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         Utils.saveSamples(pttSamples,path,sdf.format(resultdate)+"_ptt_samples_"+ppgSR+".txt")
         Utils.saveValueSamples(ecgFilteredSamples,path,sdf.format(resultdate)+"_ecg_filtered_samples_"+ecgSR+".txt")
         Utils.saveValueSamples(ppgFilteredSamples,path,sdf.format(resultdate)+"_ppg_filtered_samples_"+ppgSR+".txt")
+
+        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
+        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
     }
 
 
@@ -320,20 +418,21 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                         if(ppgFirstSampleTimestamp==0L){
                             val et=System.currentTimeMillis()
                             val rt=et-st
-                            Log.e(TAG, "Stream PPG RT: "+rt.toString()+" ET: "+et.toString()+" Pkg size: "+polarPpgData.samples.size)
+                            Log.i(TAG, "Stream PPG RT: "+rt.toString()+" Pkg size: "+polarPpgData.samples.size)
                             if(rt<2310){
                                 Log.e(TAG, "can not sync signals")
-//                                runOnUiThread {
-//                                    getOnBackPressedDispatcher().onBackPressed()
-//                                }
-//                                return@subscribe
-                            }
 
-                            val pkgTimeLength = ((polarPpgData.samples.size.toDouble())/ppgSR*1000).toLong()
-//                            ppgAdjustedFirstSampleTimestamp = System.currentTimeMillis()-pkgTimeLength-ppgFirstSampleTimestampOffset
-                            ppgAdjustedFirstSampleTimestamp = st+(rt-(215+pkgTimeLength))
-                            ppgAdjustedFirstSampleTimestamp = et-225-pkgTimeLength
+//                                return@subscribe
+                                val pkgTimeLength = ((polarPpgData.samples.size.toDouble())/ppgSR*1000).toLong()
+                                ppgAdjustedFirstSampleTimestamp = et-225-pkgTimeLength
+                            }else{
+                                ppgAdjustedFirstSampleTimestamp = st+(rt-960)
+                            }
+                            ppgAdjustedFirstSampleTimestamp = st
                             ppgFirstSampleTimestamp = polarPpgData.samples[0].timeStamp
+
+                            val ppgTimestamp= polarTimestamp2UnixTimestamp(ppgFirstSampleTimestamp)
+                            Log.i(TAG,et.toString()+" "+ppgTimestamp+" diff: "+(et-ppgTimestamp))
                         }
                         plotPPG(polarPpgData.samples)
                     }
@@ -374,11 +473,21 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
             for (data in samples) {
                 val value = - data.channelSamples[0].toDouble()
-                val sample = Sample((data.timeStamp-ppgFirstSampleTimestamp)/ MStoNS +ppgAdjustedFirstSampleTimestamp, value)
+                val sample = Sample((data.timeStamp-ppgFirstSampleTimestamp)/ MStoNS +ppgAdjustedFirstSampleTimestamp+offset, value)
                 ppgSamples.add(sample)
             }
 
             if (ecgSamples.size < ecgPlotterSize+ecgSR || ppgSize < ppgPlotterSize+ppgSR) {
+                for(data in samples){
+                    val value= - data.channelSamples[0].toDouble()
+                    ppgPlotter.sendSingleSampleWithoutUpdate(value)
+                }
+                ppgPlotter.update()
+                val max=Math.max(ecgSamples.size-ecgPlotterSize,0)
+                for(i in max until ecgSamples.size){
+                    ecgPlotter.sendSingleSampleWithoutUpdate(ecgSamples[i].value)
+                }
+                ecgPlotter.update()
                 return
             }
 
@@ -398,7 +507,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
-//            ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgRes)
+            ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgRes)
             ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
 
 
@@ -409,8 +518,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             var ppgRes = ButterworthBandpassFilter.concatenate(ppgPast)
-//            ppgRes = ButterworthBandpassFilter.ppg176hzBandpassFilter(ppgRes)
-//            ppgRes = ButterworthBandpassFilter.ppg55hzBandpassFilter(ppgRes)
+            ppgRes = ButterworthBandpassFilter.ppgBandpassFilter(ppgRes)
             ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, this.ppgPlotterSize / 2)
 
             //plot filtered ppg and ecg
@@ -424,7 +532,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             pttSamples.add(Sample(timestamp,info.PTT))
 
             //update ptt
-            if(info.PTT.toInt() in 1..499){
+            if(info.PTT.toInt() in 1..800){
                 updatePtt(String.format("%3.0f ms",info.PTT))
             }else{
                 updatePtt("-")
@@ -466,14 +574,16 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                         "\nPPG Time Range: [%d\t,%d]" +
                         "\nECG Time Range: [%d\t,%d]" +
                         "\nStart diff: %d"+
-                        "\nEnd diff: %d"
+                        "\nEnd diff: %d"+
+                        "\nOffset: %d"
                 ,
                 ((System.currentTimeMillis() - startTimestamp) / 1000),
                 info.HR,
                 ppgRangeLeft,ppgRangeRight,
                 ecgRangeLeft,ecgRangeRight,
                 ppgRangeRight-ecgRangeRight,
-                ppgRangeLeft-ecgRangeLeft
+                ppgRangeLeft-ecgRangeLeft,
+                offset
                 ))
         }catch (e:ConcurrentModificationException){
             e.printStackTrace()
@@ -485,12 +595,19 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     }
 
 
+    var lastECG=0.0
     private fun plotECG(sample: Sample) {
+//        if(sample.value>0.001||sample.value<0){
+//            sample.value= lastECG
+//        }
+        lastECG=sample.value
         if(ppgReceived){
             sample.timestamp = sample.timestamp - ecgFirstSampleTimestamp + startTimestamp - ecgFirstSampleTimestampOffset
             ecgSamples.add(sample)
         }else{
             ecgFirstSampleTimestamp=sample.timestamp
+            ecgPlotter.sendSingleSample(sample.value)
+            ecgSamples.add(sample)
         }
     }
 

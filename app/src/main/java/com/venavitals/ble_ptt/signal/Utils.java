@@ -5,11 +5,14 @@ import static com.venavitals.ble_ptt.signal.filters.ButterworthBandpassFilter.PP
 
 import android.util.Log;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.net.Socket;
 import java.util.Arrays;
 import java.util.List;
 
@@ -102,7 +105,7 @@ public class Utils {
             max = Math.max(max, ecgSample);
             min = Math.min(min, ecgSample);
         }
-        Log.d(TAG,"ECG min: "+min+" max: "+max);
+//        Log.d(TAG,"ECG min: "+min+" max: "+max);
         info.ecgMaxValue=max;
         info.ecgMinValue=min;
 
@@ -114,7 +117,7 @@ public class Utils {
             max = Math.max(max, ppgSample);
             min = Math.min(min, ppgSample);
         }
-        Log.d(TAG,"PPG min: "+min+" max: "+max);
+//        Log.d(TAG,"PPG min: "+min+" max: "+max);
         info.ppgMaxValue=max;
         info.ppgMinValue=min;
 
@@ -129,7 +132,7 @@ public class Utils {
 
         FindPeak ppgFp = new FindPeak(ppgSamples);
         Spike ppgSpikes = ppgFp.getSpikes();
-        int[] ppgOutRightFilter = ppgSpikes.filterByProperty(300.0, 20000.0, "left");
+        int[] ppgOutRightFilter = ppgSpikes.filterByProperty(200.0, 20000.0, "left");
 
         info.ppgPeaks=ppgOutRightFilter.length;
         info.ecgPeaks=ecgOutRightFilter.length;
@@ -159,7 +162,10 @@ public class Utils {
                 }
             }
         }
-        if (!continuityCheckFlag) return info;
+        if (!continuityCheckFlag){
+            Log.i(TAG,"continuity check failed");
+            return info;
+        }
 
         // Calc PTT and HR
         double PTTSum = 0;
@@ -182,10 +188,46 @@ public class Utils {
         }
 
         double HR = ECG_SR * 60 / (HRSum / (ppgOutRightFilter.length - 1));
+        System.out.println(PTTSum+" "+PTTCounter);
         double PTT = PTTSum / PTTCounter;
 
         info.HR=HR;
         info.PTT=PTT;
         return info;
     }
+
+    public static void useThreadToSendFile(String filePath){
+        Thread t=new Thread(()->{
+            sendFile(filePath);
+        });
+        t.start();
+    }
+
+    public static void sendFile(String filePath) {
+        String serverIp = "192.168.0.84"; // 替换为Python服务器的IP地址
+        int serverPort = 5000; // Python服务器监听的端口
+
+        try (Socket socket = new Socket(serverIp, serverPort);
+             FileInputStream fileInputStream = new FileInputStream(filePath);
+             BufferedOutputStream outputStream = new BufferedOutputStream(socket.getOutputStream())) {
+
+            // 发送文件名
+            String fileName = new File(filePath).getName();
+            outputStream.write((fileName + "\n").getBytes());
+            outputStream.flush();
+
+            // 发送文件内容
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            outputStream.flush();
+            System.out.println("文件已成功发送: " + filePath);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 }
