@@ -500,9 +500,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
             val ecgPast = DoubleArray(ecgPlotterSize)
 
-//            println(ecgSamples.last().timestamp.toString()+" ecg")
-//            println(ppgSamples.last().timestamp.toString()+" ppg")
-
             val ppgPast = DoubleArray(this.ppgPlotterSize)
             var idx = 0
             for (i in ppgSize - this.ppgPlotterSize until ppgSize) {
@@ -518,15 +515,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 ecgPast[i-ecgStart]=ecgSamples[i].value
             }
 
-//            var ecgEnd=ecgSamples.size-1
-//            while(ecgEnd>=0&&ecgSamples[ecgEnd].timestamp>(ppgSamples[ppgSize-1].timestamp)){
-//                ecgEnd--
-//            }
-//            ecgEnd+=1
-//            if(ecgEnd-ecgPlotterSize<0)return
-//            for(i in ecgEnd-ecgPlotterSize until ecgEnd){
-//                ecgPast[i-(ecgEnd-ecgPlotterSize)]=ecgSamples[i].value
-//            }
 
             val halfStart= ppgSize-ppgPlotterSize-ppgPlotterSize/2
 
@@ -581,16 +569,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             //display info
             val ppgRangeLeft = ppgSamples[ppgSize-ppgPlotterSize].timestamp
             val ppgRangeRight = ppgSamples[ppgSize-1].timestamp
-//            val ecgRangeLeft = ecgSamples[ecgEnd-ecgPlotterSize].timestamp
-//            val ecgRangeRight = ecgSamples[ecgEnd-1].timestamp
             val ecgRangeLeft = ecgSamples[ecgStart].timestamp
             val ecgRangeRight = ecgSamples[ecgStart+ecgPlotterSize-1].timestamp
 
-//            println(ecgRangeRight-ecgRangeLeft)
-//            println(ppgRangeRight-ecgRangeLeft)
-
-//            Log.d(TAG, "$ppgRangeLeft ppg $ppgRangeRight")
-//            Log.d(TAG, "$ecgRangeLeft ecg $ecgRangeRight")
             updateInfo(String.format(
                 "Filtering...\nDuration: %d sec" +
                         "\nShort Period HR: %.2f" +
@@ -620,9 +601,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
     var lastECG=0.0
     private fun plotECG(sample: Sample) {
-//        if(sample.value>0.001||sample.value<0){
-//            sample.value= lastECG
-//        }
         lastECG=sample.value
         if(ppgReceived){
             sample.timestamp = sample.timestamp - ecgFirstSampleTimestamp + startTimestamp - ecgFirstSampleTimestampOffset
