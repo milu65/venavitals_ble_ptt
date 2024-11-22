@@ -494,8 +494,10 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             val ecgPast = DoubleArray(ecgPlotterSize)
-
             val ppgPast = DoubleArray(this.ppgPlotterSize)
+            var ecgRawMax = 0.0
+            var ecgRawMin = 0.0
+
             var idx = 0
             for (i in ppgSize - this.ppgPlotterSize until ppgSize) {
                 ppgPast[idx++] = ppgSamples[i].value
@@ -508,6 +510,13 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             if(ecgStart-ecgPlotterSize<0)return
             for(i in ecgStart until ecgStart+ecgPlotterSize){
                 ecgPast[i-ecgStart]=ecgSamples[i].value
+                if(i==ecgStart){
+                    ecgRawMax=ecgSamples[i].value
+                    ecgRawMin=ecgSamples[i].value
+                }else{
+                    ecgRawMax=Math.max(ecgRawMax,ecgSamples[i].value)
+                    ecgRawMin=Math.min(ecgRawMin,ecgSamples[i].value)
+                }
             }
 
 
@@ -544,13 +553,15 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             //update signal info
             updateSignalInfo(String.format(
                 "Peaks\nPPG Peaks: %d\t YRange[%f, %f]"+
-                        "\nECG Peaks: %d\t YRange[%f, %f]",
+                        "\nECG Peaks: %d\t YRange[%f, %f]"+
+                        "\nECG Raw YRange[%f, %f]",
                 info.ppgPeaks,
                 info.ppgMinValue,
                 info.ppgMaxValue,
                 info.ecgPeaks,
                 info.ecgMinValue,
-                info.ecgMaxValue
+                info.ecgMaxValue,
+                ecgRawMin,ecgRawMax
             ))
 
             //record filtered samples
