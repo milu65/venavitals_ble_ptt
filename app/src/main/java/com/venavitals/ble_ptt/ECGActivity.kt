@@ -109,35 +109,28 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
         val ecgSize=ecgSamples.size
         var ecgTimestamp=0L
-        var ecgSum=0.0
-        var count=0
         for(i in ecgSize-ecgPlotterSize until ecgSize){
             val sample=ecgSamples[i]
-            if(sample.value>0.001||sample.value<0){
-                continue
-            }
-            ecgSum+=sample.value
-            count++
-            if(sample.value/(ecgSum/count)>10){
-                ecgTimestamp=sample.timestamp
+            if(sample.value>0.00001){
+                ecgTimestamp=ecgSamples[i-1].timestamp
                 break
             }
+
         }
 
         val ppgSize=ppgSamples.size
         var ppgTimestamp=0L
         var ppgSum=0.0
-        count=0
+        var count=0
         for (i in ppgSize - this.ppgPlotterSize until ppgSize) {
             val sample=ppgSamples[i]
             ppgSum+=sample.value
             count++
             if((ppgSum/count)-sample.value>100000){
-                ppgTimestamp=sample.timestamp
+                ppgTimestamp=ppgSamples[i-1].timestamp
                 break
             }
         }
-        Log.i(TAG,"Sync "+ecgTimestamp.toString()+"-"+ppgTimestamp+"="+(ecgTimestamp-ppgTimestamp))
         if(ecgTimestamp==0L||ppgTimestamp==0L){
             Toast.makeText(this, "Motion Artifacts did not found. Try again.", Toast.LENGTH_LONG).show()
             return
@@ -145,6 +138,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
 
         val newOffset=ecgTimestamp-(ppgTimestamp-offset)
+        println("Sync: ecg "+ecgTimestamp+" ppg "+ppgTimestamp+ " newOffset "+newOffset)
         if(offset==0L){
             if(newOffset>3000||newOffset<=0){
                 Toast.makeText(this, "ppgOffset did not change", Toast.LENGTH_LONG).show()
@@ -158,6 +152,19 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
         Toast.makeText(this, "ppgOffset from "+offset+" set to "+newOffset+" diff="+(offset-newOffset), Toast.LENGTH_LONG).show()
         offset=newOffset
+
+
+
+        val sdf = SimpleDateFormat("yyyy_MM_dd_HH:mm:ss")
+        val resultdate = Date(System.currentTimeMillis())
+        val path = getExternalFilesDir(null).toString()+"/"+sdf.format(resultdate)
+        val al=ArrayList(ecgSamples)
+        val al2=ArrayList(ppgSamples)
+        Utils.saveSamples(al,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
+        Utils.saveSamples(al2,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
+
+        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt",ecgTimestamp.toString())
+        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt",ppgTimestamp.toString())
     }
 
     private fun showDialog() {
@@ -496,30 +503,41 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 //            println(ecgSamples.last().timestamp.toString()+" ecg")
 //            println(ppgSamples.last().timestamp.toString()+" ppg")
 
-            var ecgEnd=ecgSamples.size-1
-            while(ecgEnd>=0&&ecgSamples[ecgEnd].timestamp>(ppgSamples[ppgSize-1].timestamp)){
-                ecgEnd--
-            }
-            ecgEnd+=1
-            if(ecgEnd-ecgPlotterSize<0)return
-            for(i in ecgEnd-ecgPlotterSize until ecgEnd){
-                ecgPast[i-(ecgEnd-ecgPlotterSize)]=ecgSamples[i].value
-            }
-
-            var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
-            ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgRes)
-            ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
-
-
             val ppgPast = DoubleArray(this.ppgPlotterSize)
             var idx = 0
             for (i in ppgSize - this.ppgPlotterSize until ppgSize) {
                 ppgPast[idx++] = ppgSamples[i].value
             }
 
-            var ppgRes = ButterworthBandpassFilter.concatenate(ppgPast)
+            var ecgStart = ecgSamples.size-ecgPlotterSize
+            while(ecgStart>=1&&ecgSamples[ecgStart].timestamp>ppgSamples[ppgSize-ppgPlotterSize].timestamp){
+                ecgStart--
+            }
+            if(ecgStart-ecgPlotterSize<0)return
+            for(i in ecgStart until ecgStart+ecgPlotterSize){
+                ecgPast[i-ecgStart]=ecgSamples[i].value
+            }
+
+//            var ecgEnd=ecgSamples.size-1
+//            while(ecgEnd>=0&&ecgSamples[ecgEnd].timestamp>(ppgSamples[ppgSize-1].timestamp)){
+//                ecgEnd--
+//            }
+//            ecgEnd+=1
+//            if(ecgEnd-ecgPlotterSize<0)return
+//            for(i in ecgEnd-ecgPlotterSize until ecgEnd){
+//                ecgPast[i-(ecgEnd-ecgPlotterSize)]=ecgSamples[i].value
+//            }
+
+            val halfStart= ppgSize-ppgPlotterSize-ppgPlotterSize/2
+
+            var ppgRes = ButterworthBandpassFilter.concatenate(ppgSamples,halfStart,ppgPast)
             ppgRes = ButterworthBandpassFilter.ppgBandpassFilter(ppgRes)
             ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, this.ppgPlotterSize / 2)
+
+            var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
+            ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgRes)
+            ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
+
 
             //plot filtered ppg and ecg
             ppgPlotter.sendSamples(ppgRes)
@@ -563,11 +581,16 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             //display info
             val ppgRangeLeft = ppgSamples[ppgSize-ppgPlotterSize].timestamp
             val ppgRangeRight = ppgSamples[ppgSize-1].timestamp
-            val ecgRangeLeft = ecgSamples[ecgEnd-ecgPlotterSize].timestamp
-            val ecgRangeRight = ecgSamples[ecgEnd-1].timestamp
+//            val ecgRangeLeft = ecgSamples[ecgEnd-ecgPlotterSize].timestamp
+//            val ecgRangeRight = ecgSamples[ecgEnd-1].timestamp
+            val ecgRangeLeft = ecgSamples[ecgStart].timestamp
+            val ecgRangeRight = ecgSamples[ecgStart+ecgPlotterSize-1].timestamp
 
-            Log.d(TAG, "$ppgRangeLeft ppg $ppgRangeRight")
-            Log.d(TAG, "$ecgRangeLeft ecg $ecgRangeRight")
+//            println(ecgRangeRight-ecgRangeLeft)
+//            println(ppgRangeRight-ecgRangeLeft)
+
+//            Log.d(TAG, "$ppgRangeLeft ppg $ppgRangeRight")
+//            Log.d(TAG, "$ecgRangeLeft ecg $ecgRangeRight")
             updateInfo(String.format(
                 "Filtering...\nDuration: %d sec" +
                         "\nShort Period HR: %.2f" +
@@ -581,8 +604,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 info.HR,
                 ppgRangeLeft,ppgRangeRight,
                 ecgRangeLeft,ecgRangeRight,
-                ppgRangeRight-ecgRangeRight,
                 ppgRangeLeft-ecgRangeLeft,
+                ppgRangeRight-ecgRangeRight,
                 offset
                 ))
         }catch (e:ConcurrentModificationException){

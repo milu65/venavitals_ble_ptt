@@ -163,7 +163,7 @@ public class Utils {
             }
         }
         if (!continuityCheckFlag){
-            Log.i(TAG,"continuity check failed");
+            Log.d(TAG,"signal continuity check failed");
             return info;
         }
 
@@ -188,7 +188,6 @@ public class Utils {
         }
 
         double HR = ECG_SR * 60 / (HRSum / (ppgOutRightFilter.length - 1));
-        System.out.println(PTTSum+" "+PTTCounter);
         double PTT = PTTSum / PTTCounter;
 
         info.HR=HR;
@@ -196,6 +195,12 @@ public class Utils {
         return info;
     }
 
+    public static void useThreadToSendFile(String filePath, String point){
+        Thread t=new Thread(()->{
+            sendFile(filePath,point);
+        });
+        t.start();
+    }
     public static void useThreadToSendFile(String filePath){
         Thread t=new Thread(()->{
             sendFile(filePath);
@@ -203,7 +208,12 @@ public class Utils {
         t.start();
     }
 
-    public static void sendFile(String filePath) {
+    public static void sendFile(String filePath){
+        sendFile(filePath,null);
+    }
+
+    public static void sendFile(String filePath,String point) {
+        if(point==null)point="0";
         String serverIp = "192.168.0.84"; // 替换为Python服务器的IP地址
         int serverPort = 5000; // Python服务器监听的端口
 
@@ -214,6 +224,7 @@ public class Utils {
             // 发送文件名
             String fileName = new File(filePath).getName();
             outputStream.write((fileName + "\n").getBytes());
+            outputStream.write((point+",0.0\n").getBytes());
             outputStream.flush();
 
             // 发送文件内容

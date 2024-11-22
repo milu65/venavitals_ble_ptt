@@ -1,6 +1,8 @@
 package com.venavitals.ble_ptt.signal.filters;
 
+import com.venavitals.ble_ptt.signal.Sample;
 import java.util.Arrays;
+import java.util.List;
 
 public class ButterworthBandpassFilter {
     public static int PPG_SR=176;  //28Hz, 44Hz, 55Hz, 135Hz, 176Hz
@@ -16,6 +18,23 @@ public class ButterworthBandpassFilter {
 
         for(int i=0;i<half;i++){
             newArr[half-i-1]=arr[i];
+            newArr[newArr.length-i-1]=arr[half+i];
+        }
+        System.arraycopy(arr, l, newArr,half, arr.length-l);
+
+        return newArr;
+    }
+
+    public static double[] concatenate(List<Sample> al, int start, double[]arr){ //mirror padding on right half
+        int l=0;
+        if(arr.length%2!=0)l++;
+
+        int half=arr.length/2;
+
+        double[] newArr=new double[(arr.length-l)*2];
+
+        for(int i=0;i<half;i++){
+            newArr[i]=al.get(i+start).value;
             newArr[newArr.length-i-1]=arr[half+i];
         }
         System.arraycopy(arr, l, newArr,half, arr.length-l);
