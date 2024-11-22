@@ -332,10 +332,10 @@ public class Utils {
         sendFile(filePath,null);
     }
 
-    public static void sendFile(String filePath,String point) {
+    public static synchronized void sendFile(String filePath,String point) {
         if(point==null)point="0";
-        String serverIp = "192.168.0.84"; // 替换为Python服务器的IP地址
-        int serverPort = 5000; // Python服务器监听的端口
+        String serverIp = "192.168.0.45"; // 替换为Python服务器的IP地址
+        int serverPort = 8848; // Python服务器监听的端口
 
         try (Socket socket = new Socket(serverIp, serverPort);
              FileInputStream fileInputStream = new FileInputStream(filePath);
