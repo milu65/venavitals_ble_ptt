@@ -96,7 +96,7 @@ public class Utils {
 
     }
 
-    public static SignalInfo calcPTT(double[] ecgSamples, double[] ppgSamples) {
+    public static SignalInfo calcPTTold(double[] ecgSamples, double[] ppgSamples) {
         SignalInfo info=new SignalInfo();
         // log debug peaks and samples info
         double max=0;
@@ -195,6 +195,126 @@ public class Utils {
         return info;
     }
 
+
+    public static SignalInfo calcPTT(double[] ecgSamples, double[] ppgSamples) {
+        final int minPTT=0;
+        final int maxPTT=800;
+
+        SignalInfo info=new SignalInfo();
+        // log debug peaks and samples info
+        double max=0;
+        double min=0;
+        for (double ecgSample : ecgSamples) {
+            max = Math.max(max, ecgSample);
+            min = Math.min(min, ecgSample);
+        }
+//        Log.d(TAG,"ECG min: "+min+" max: "+max);
+        info.ecgMaxValue=max;
+        info.ecgMinValue=min;
+
+        double ecgThreshold=(max-min)*0.8;
+
+        min=0;
+        max=0;
+        for (double ppgSample : ppgSamples) {
+            max = Math.max(max, ppgSample);
+            min = Math.min(min, ppgSample);
+        }
+//        Log.d(TAG,"PPG min: "+min+" max: "+max);
+        info.ppgMaxValue=max;
+        info.ppgMinValue=min;
+
+        double ppgThreshold=(max-min)*0.8;
+
+        // Find peaks
+        FindPeak ecgFp = new FindPeak(ecgSamples);
+        Spike ecgSpikes = ecgFp.getSpikes();
+        int[] ecgOutRightFilter = ecgSpikes.filterByProperty(ecgThreshold, 1.0, "right");
+
+        FindPeak ppgFp = new FindPeak(ppgSamples);
+        Spike ppgSpikes = ppgFp.getSpikes();
+        int[] ppgOutRightFilter = ppgSpikes.filterByProperty(100.0, 20000.0, "left");
+
+        info.ppgPeaks=ppgOutRightFilter.length;
+        info.ecgPeaks=ecgOutRightFilter.length;
+//        System.out.println("ECG Peaks: "+Arrays.toString(ecgOutRightFilter));
+//        System.out.println("PPG Peaks: "+Arrays.toString(ppgOutRightFilter));
+
+        // Continuity check
+        // HR 40 - 150 (0.4-1.5)
+        boolean continuityCheckFlag = true;
+        final double MIN_GAP = 0.4;
+        final double MAX_GAP = 1.5;
+        for (int i = 0; i < ecgOutRightFilter.length; i++) {
+            if (i != 0) {
+                double gap = (double) ecgOutRightFilter[i] / ECG_SR - (double) ecgOutRightFilter[i - 1] / ECG_SR;
+                if (gap < MIN_GAP || gap > MAX_GAP) {
+                    continuityCheckFlag = false;
+                    break;
+                }
+            }
+        }
+
+        double HRSum = 0;
+        if (continuityCheckFlag){ //HR calc
+            for(int k=0;k<ecgOutRightFilter.length;k++){
+                if(k!=0) {
+                    HRSum += ecgOutRightFilter[k] - ecgOutRightFilter[k - 1];
+                }
+            }
+            info.HR= ECG_SR * 60.0 / (HRSum / (ecgOutRightFilter.length - 1));
+        }
+
+        if (continuityCheckFlag)for (int i = 0; i < ppgOutRightFilter.length; i++) {
+            if (i != 0) {
+                double gap = (double) ppgOutRightFilter[i] / PPG_SR - (double) ppgOutRightFilter[i - 1] / PPG_SR;
+                if (gap < MIN_GAP || gap > MAX_GAP) {
+                    continuityCheckFlag = false;
+                    break;
+                }
+            }
+        }
+        if (!continuityCheckFlag){
+            System.out.println("signal continuity check failed");
+            return info;
+        }
+
+        // Calc PTT and HR
+        double PTTSum = 0;
+        int PTTCounter = 0;
+        int i=0;
+        int j=0;
+        for(;i<ecgOutRightFilter.length;i++){ //find first valuable ECG and PPG peaks
+            double ecgTime=ecgOutRightFilter[i]/(double)ECG_SR;
+            for(;j<ppgOutRightFilter.length;j++){
+                System.out.println(ecgOutRightFilter[i]/(double)ECG_SR+" "+ppgOutRightFilter[j]/(double)PPG_SR);
+                if(ppgOutRightFilter[j]/(double)PPG_SR>ecgTime){
+                    break;
+                }
+            }
+            if(j>=ppgOutRightFilter.length){
+                break;
+            }
+            if((ppgOutRightFilter[j]/(double)PPG_SR-ecgTime)*1000<maxPTT){
+                break;
+            }
+        }
+        int minLen = Math.min(ppgOutRightFilter.length-j, ecgOutRightFilter.length-i);
+        for(int k=0;k<minLen;k++){ //PTT calc
+            PTTCounter++;
+            PTTSum += (ppgOutRightFilter[j+k] * 1000.0 / PPG_SR - ecgOutRightFilter[i+k] * 1000.0 / ECG_SR);
+        }
+
+        double PTT = PTTSum / PTTCounter;
+
+        info.PTT=PTT;
+        if(PTT<minPTT||PTT>maxPTT){
+            Log.d(TAG,"wrong PTT: "+PTT);
+        }
+
+        return info;
+    }
+
     public static void useThreadToSendFile(String filePath, String point){
         Thread t=new Thread(()->{
             sendFile(filePath,point);
@@ -239,6 +359,18 @@ public class Utils {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+
+
+    final public static int MStoNS = 1000_000;
+    final private static long PolarEpochTime = 946684800000L;
+    public static Long  polarTimestamp2UnixTimestamp(Long vv) {
+        //Unit: us; Epoch time for polar is 2000-01-01T00:00:00Z
+        long v = vv;
+        v /= MStoNS; // ns to ms
+        v += PolarEpochTime; // set epoch time to unit epoch
+        return v;
     }
 
 }

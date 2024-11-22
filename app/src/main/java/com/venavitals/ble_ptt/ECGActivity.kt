@@ -34,9 +34,6 @@ import java.util.Date
 import java.util.UUID
 
 
-private const val MStoNS = 1000_000
-
-private const val PolarEpochTime = 946684800000
 
 class ECGActivity : AppCompatActivity(), PlotterListener {
     companion object {
@@ -261,8 +258,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
                 when (feature) {
                     PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING -> {
-
                         streamHR()
+
                     }
                     PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_SDK_MODE->{
                         api.enableSDKMode(ppgDeviceId)
@@ -271,6 +268,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                                 {
                                     Log.d(TAG, "SDK mode enabled")
                                     streamPPG()
+                                    streamHR()
                                 },
                                 { error ->
                                     val errorString = "SDK mode enable failed: $error"
@@ -422,24 +420,29 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 { polarPpgData: PolarPpgData ->
                     if (polarPpgData.type == PolarPpgData.PpgDataType.PPG3_AMBIENT1) {
                         assert(polarPpgData.samples.isNotEmpty())
+//                        if(ppgFirstSampleTimestamp==0L){
+//                            val et=System.currentTimeMillis()
+//                            val rt=et-st
+//                            Log.i(TAG, "Stream PPG RT: "+rt.toString()+" Pkg size: "+polarPpgData.samples.size)
+//                            if(rt<2310){
+//                                Log.e(TAG, "can not sync signals")
+//
+////                                return@subscribe
+//                                val pkgTimeLength = ((polarPpgData.samples.size.toDouble())/ppgSR*1000).toLong()
+//                                ppgAdjustedFirstSampleTimestamp = et-225-pkgTimeLength
+//                            }else{
+//                                ppgAdjustedFirstSampleTimestamp = st+(rt-960)
+//                            }
+//                            ppgAdjustedFirstSampleTimestamp = st
+//                            ppgFirstSampleTimestamp = polarPpgData.samples[0].timeStamp
+//
+//                            val ppgTimestamp= Utils.polarTimestamp2UnixTimestamp(ppgFirstSampleTimestamp)
+//                            Log.i(TAG,et.toString()+" "+ppgTimestamp+" diff: "+(et-ppgTimestamp))
+//                        }
+
                         if(ppgFirstSampleTimestamp==0L){
-                            val et=System.currentTimeMillis()
-                            val rt=et-st
-                            Log.i(TAG, "Stream PPG RT: "+rt.toString()+" Pkg size: "+polarPpgData.samples.size)
-                            if(rt<2310){
-                                Log.e(TAG, "can not sync signals")
-
-//                                return@subscribe
-                                val pkgTimeLength = ((polarPpgData.samples.size.toDouble())/ppgSR*1000).toLong()
-                                ppgAdjustedFirstSampleTimestamp = et-225-pkgTimeLength
-                            }else{
-                                ppgAdjustedFirstSampleTimestamp = st+(rt-960)
-                            }
-                            ppgAdjustedFirstSampleTimestamp = st
                             ppgFirstSampleTimestamp = polarPpgData.samples[0].timeStamp
-
-                            val ppgTimestamp= polarTimestamp2UnixTimestamp(ppgFirstSampleTimestamp)
-                            Log.i(TAG,et.toString()+" "+ppgTimestamp+" diff: "+(et-ppgTimestamp))
+                            ppgAdjustedFirstSampleTimestamp = st;
                         }
                         plotPPG(polarPpgData.samples)
                     }
@@ -459,14 +462,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var ppgPlotterSize = ppgSR*5
     private var ecgPlotterSize = ecgSR*5
 
-    private fun polarTimestamp2UnixTimestamp(vv:Long): Long {
-        //Unit: us; Epoch time for polar is 2000-01-01T00:00:00Z
-        var v = vv
-        v /= MStoNS // ns to ms
-        v += PolarEpochTime // set epoch time to unit epoch
-        return v
-    }
-
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
         val gap = 20
         val ppgSize = ppgSamples.size+samples.size-gap
@@ -480,7 +475,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
             for (data in samples) {
                 val value = - data.channelSamples[0].toDouble()
-                val sample = Sample((data.timeStamp-ppgFirstSampleTimestamp)/ MStoNS +ppgAdjustedFirstSampleTimestamp+offset, value)
+                val sample = Sample((data.timeStamp-ppgFirstSampleTimestamp)/ Utils.MStoNS +ppgAdjustedFirstSampleTimestamp+offset, value)
                 ppgSamples.add(sample)
             }
 
