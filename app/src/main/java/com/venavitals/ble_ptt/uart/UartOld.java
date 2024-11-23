@@ -43,7 +43,8 @@ public class UartOld{
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
 
-    private final String deviceAddress = "D4:99:F5:24:E9:2D"; //TODO: constant
+//    private final String deviceAddress = "D4:99:F5:24:E9:2D"; //TODO: constant
+    private final String deviceAddress = "FC:A1:05:62:7A:F4";
 
     private List<Double> samples= new ArrayList<>();
 
