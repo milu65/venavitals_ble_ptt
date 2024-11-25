@@ -31,6 +31,7 @@ import io.reactivex.rxjava3.disposables.Disposable
 import java.text.SimpleDateFormat
 import java.util.Collections
 import java.util.Date
+import java.util.LinkedList
 import java.util.UUID
 
 
@@ -64,10 +65,10 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
     private var ecgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList()) //TODO: ConcurrentLinkedQueue might be better
     private var ppgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList())
-    private var ppgFilteredSamples: ArrayList<Double> = ArrayList()
-    private var ecgFilteredSamples: ArrayList<Double> = ArrayList()
-    private var hrSamples: ArrayList<Sample> = ArrayList()
-    private var pttSamples: ArrayList<Sample> = ArrayList()
+    private var ppgFilteredSamples: LinkedList<Double> = LinkedList()
+    private var ecgFilteredSamples: LinkedList<Double> = LinkedList()
+    private var hrSamples: LinkedList<Sample> = LinkedList()
+    private var pttSamples: LinkedList<Sample> = LinkedList()
 
     @Volatile private var startTimestamp: Long = 0
     @Volatile private var ppgReceived:Boolean =false
@@ -479,7 +480,9 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 ppgSamples.add(sample)
             }
 
-            if (ecgSamples.size < ecgPlotterSize+ecgSR || ppgSize < ppgPlotterSize+ppgSR) {
+            val ecgPaddingSize=(ecgPlotterSize*0.15).toInt()
+            val ppgPaddingSize=(ppgPlotterSize*0.15).toInt()
+            if (ecgSamples.size < ecgPlotterSize+ecgPaddingSize*2 || ppgSize < ppgPlotterSize+ppgPaddingSize*2) {
                 for(data in samples){
                     val value= - data.channelSamples[0].toDouble()
                     ppgPlotter.sendSingleSampleWithoutUpdate(value)
@@ -493,23 +496,31 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 return
             }
 
-            val ecgPast = DoubleArray(ecgPlotterSize)
-            val ppgPast = DoubleArray(this.ppgPlotterSize)
+            val ecgPast = DoubleArray(ecgPlotterSize+2*ecgPaddingSize)
+            val ppgPast = DoubleArray(ppgPlotterSize+2*ppgPaddingSize)
             var ecgRawMax = 0.0
             var ecgRawMin = 0.0
 
             var idx = 0
-            for (i in ppgSize - this.ppgPlotterSize until ppgSize) {
+            for (i in ppgSize - ppgPlotterSize - ppgPaddingSize*2 until ppgSize) {
                 ppgPast[idx++] = ppgSamples[i].value
             }
 
             var ecgStart = ecgSamples.size-ecgPlotterSize
-            while(ecgStart>=1&&ecgSamples[ecgStart].timestamp>ppgSamples[ppgSize-ppgPlotterSize].timestamp){
+            while(ecgStart>=1&&ecgSamples[ecgStart].timestamp>ppgSamples[ppgSize-ppgPlotterSize-ppgPaddingSize].timestamp){
                 ecgStart--
             }
-            if(ecgStart-ecgPlotterSize<0)return
-            for(i in ecgStart until ecgStart+ecgPlotterSize){
-                ecgPast[i-ecgStart]=ecgSamples[i].value
+            if(ecgStart-ecgPaddingSize<0){
+                Log.e(TAG,"ECG range error left")
+                return
+            }
+            if(ecgStart+ecgPlotterSize+ecgPaddingSize>ecgSamples.size){
+                Log.e(TAG,"ECG range error right")
+                return
+            }
+
+            for(i in ecgStart-ecgPaddingSize until ecgStart+ecgPlotterSize+ecgPaddingSize){
+                ecgPast[i-(ecgStart-ecgPaddingSize)]=ecgSamples[i].value
                 if(i==ecgStart){
                     ecgRawMax=ecgSamples[i].value
                     ecgRawMin=ecgSamples[i].value
@@ -520,15 +531,11 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
 
-            val halfStart= ppgSize-ppgPlotterSize-ppgPlotterSize/2
+            var ppgRes = ButterworthBandpassFilter.ppgBandpassFilter(ppgPast)
+            ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, ppgPaddingSize)
 
-            var ppgRes = ButterworthBandpassFilter.concatenate(ppgSamples,halfStart,ppgPast)
-            ppgRes = ButterworthBandpassFilter.ppgBandpassFilter(ppgRes)
-            ppgRes = ButterworthBandpassFilter.trimSamples(ppgRes, this.ppgPlotterSize / 2)
-
-            var ecgRes = ButterworthBandpassFilter.concatenate(ecgPast)
-            ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgRes)
-            ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPlotterSize / 2)
+            var ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgPast)
+            ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPaddingSize)
 
 
             //plot filtered ppg and ecg
@@ -573,8 +580,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             //display info
-            val ppgRangeLeft = ppgSamples[ppgSize-ppgPlotterSize].timestamp
-            val ppgRangeRight = ppgSamples[ppgSize-1].timestamp
+            val ppgRangeLeft = ppgSamples[ppgSize-ppgPlotterSize-ppgPaddingSize].timestamp
+            val ppgRangeRight = ppgSamples[ppgSize-ppgPaddingSize-1].timestamp
             val ecgRangeLeft = ecgSamples[ecgStart].timestamp
             val ecgRangeRight = ecgSamples[ecgStart+ecgPlotterSize-1].timestamp
 

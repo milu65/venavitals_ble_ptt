@@ -202,7 +202,7 @@ public class Utils {
             }
         }
         if (!continuityCheckFlag){
-            System.out.println("signal continuity check failed");
+            Log.d(TAG,"signal continuity check failed");
             return info;
         }
 
@@ -214,7 +214,7 @@ public class Utils {
         for(;i<ecgOutRightFilter.length;i++){ //find first valuable ECG and PPG peaks
             double ecgTime=ecgOutRightFilter[i]/(double)ECG_SR;
             for(;j<ppgOutRightFilter.length;j++){
-                System.out.println(ecgOutRightFilter[i]/(double)ECG_SR+" "+ppgOutRightFilter[j]/(double)PPG_SR);
+//                System.out.println(ecgOutRightFilter[i]/(double)ECG_SR+" "+ppgOutRightFilter[j]/(double)PPG_SR);
                 if(ppgOutRightFilter[j]/(double)PPG_SR>ecgTime){
                     break;
                 }

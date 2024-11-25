@@ -156,6 +156,9 @@ public class UartOld{
                     // battery level
                     int offsetBattery = 13;
                     int batteryLevel=a[offsetBattery];
+                    if(timestamp%(30*1000)<=4){
+                        Log.i(TAG,"ECG batteryLevel: "+batteryLevel);
+                    }
 
                     // idx
                     int offsetIdx = 14;
