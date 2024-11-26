@@ -73,7 +73,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     @Volatile private var startTimestamp: Long = 0
     @Volatile private var ppgReceived:Boolean =false
     private var ecgFirstSampleTimestamp = 0L
-    private val ecgFirstSampleTimestampOffset: Long = 20L
     private var ppgFirstSampleTimestamp: Long = 0L
     private var ppgAdjustedFirstSampleTimestamp: Long = 0L
     @Volatile private var offset: Long =0
@@ -463,20 +462,33 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private var ppgPlotterSize = ppgSR*5
     private var ecgPlotterSize = ecgSR*5
 
+    var lastTS=0L
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
         val gap = 20
         val ppgSize = ppgSamples.size+samples.size-gap
-        val timestamp = System.currentTimeMillis()
+        val ts = System.currentTimeMillis()
 
         try {
-            Log.d(TAG, "PPG data available ${samples.size} Thread:${Thread.currentThread()}")
             if (!ppgReceived) {
                 ppgReceived = true
                 startTimestamp = System.currentTimeMillis()
             }
+            if(ts-lastTS>1*1000){
+                val clockErrorCompensation = -2.4316241065484705e-05*(ts-ppgAdjustedFirstSampleTimestamp)
+//                println(clockErrorCompensation)
+                var diff=ts- ((samples[0].timeStamp-ppgFirstSampleTimestamp)/ Utils.MStoNS + ppgAdjustedFirstSampleTimestamp - clockErrorCompensation.toLong())
+                Log.i(TAG,"ppg ts diff:"+diff)
+                diff = ts- ((samples[0].timeStamp-ppgFirstSampleTimestamp)/ Utils.MStoNS + ppgAdjustedFirstSampleTimestamp)
+                Log.i(TAG,"ppg ts o diff:"+diff)
+
+                lastTS=ts
+            }
+            Log.d(TAG, "PPG data available ${samples.size} Thread:${Thread.currentThread()}")
+            return
             for (data in samples) {
                 val value = - data.channelSamples[0].toDouble()
-                val sample = Sample((data.timeStamp-ppgFirstSampleTimestamp)/ Utils.MStoNS +ppgAdjustedFirstSampleTimestamp+offset, value)
+                var clockErrorCompensation = -2.4316241065484705e-05*(ts-ppgAdjustedFirstSampleTimestamp)
+                val sample = Sample((data.timeStamp-ppgFirstSampleTimestamp)/ Utils.MStoNS + ppgAdjustedFirstSampleTimestamp + offset - clockErrorCompensation.toLong(), value)
                 ppgSamples.add(sample)
             }
 
@@ -545,8 +557,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             //calc ptt
             val info= Utils.calcPTT(ecgRes,ppgRes)
 
-            hrSamples.add(Sample(timestamp,info.HR))
-            pttSamples.add(Sample(timestamp,info.PTT))
+            hrSamples.add(Sample(ts,info.HR))
+            pttSamples.add(Sample(ts,info.PTT))
 
             //update ptt
             if(info.PTT.toInt() in 1..800){
@@ -601,7 +613,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 ppgRangeLeft-ecgRangeLeft,
                 ppgRangeRight-ecgRangeRight,
                 offset
-                ))
+            ))
         }catch (e:ConcurrentModificationException){
             e.printStackTrace()
         }catch (e:ArrayIndexOutOfBoundsException){
@@ -613,11 +625,22 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
 
     var lastECG=0.0
+    var lastTs=0L
     private fun plotECG(sample: Sample) {
         lastECG=sample.value
         if(ppgReceived){
-            sample.timestamp = sample.timestamp - ecgFirstSampleTimestamp + startTimestamp - ecgFirstSampleTimestampOffset
-            ecgSamples.add(sample)
+            val ts=System.currentTimeMillis()
+            val clockErrorCompensation = -5.8339956723863115e-05*(ts-startTimestamp)
+//            clockErrorCompensation = 0.0
+            val tsn=sample.timestamp - ecgFirstSampleTimestamp + startTimestamp - clockErrorCompensation.toLong()
+            sample.timestamp = sample.timestamp - ecgFirstSampleTimestamp + startTimestamp
+            if(sample.timestamp-lastTs>1000){
+                Log.i(TAG,"ecg ts diff:"+(ts - tsn))
+
+                Log.i(TAG,"ecg ts o diff:"+(ts - sample.timestamp))
+                lastTs=sample.timestamp
+            }
+//            ecgSamples.add(sample)
         }else{
             ecgFirstSampleTimestamp=sample.timestamp
             ecgPlotter.sendSingleSample(sample.value)
