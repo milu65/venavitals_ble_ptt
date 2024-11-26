@@ -174,7 +174,7 @@ public class UartOld{
 
                     if (lastIdx != -1) {
                         if ((lastIdx + 1) % 256 != idx) {
-                            Log.e(TAG, "ECG Gap Found: " + lastIdx + " " + idx);
+                            Log.d(TAG, "ECG Gap Found: " + lastIdx + " " + idx);
                         }
                     }
                     lastIdx =idx;

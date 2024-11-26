@@ -108,7 +108,7 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         var ecgTimestamp=0L
         for(i in ecgSize-ecgPlotterSize until ecgSize){
             val sample=ecgSamples[i]
-            if(sample.value>0.00001){
+            if(sample.value>0.000015){
                 ecgTimestamp=ecgSamples[i-1].timestamp
                 break
             }
@@ -390,6 +390,7 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
                         assert(polarPpgData.samples.isNotEmpty())
 
                         if(ppgFirstSampleTimestamp==0L){
+                            Log.i(TAG,"Stream PPG RT: "+(System.currentTimeMillis()-st)+" Pkg size: "+polarPpgData.samples.size)
                             ppgFirstSampleTimestamp = polarPpgData.samples[0].timeStamp
                             ppgAdjustedFirstSampleTimestamp = st;
                         }
@@ -410,6 +411,8 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
 
     private var ppgPlotterSize = ppgSR*5
     private var ecgPlotterSize = ecgSR*5
+    private val saveThreshold= 8
+    @Volatile private var packageCount = 0
 
     private fun plotPPG(samples: List<PolarPpgData.PolarPpgSample>){
         val gap = 20
@@ -521,11 +524,15 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
             ))
 
             //record filtered samples
-            for(s in ecgRes){
-                ecgFilteredSamples.add(s)
-            }
-            for(s in ppgRes){
-                ppgFilteredSamples.add(s)
+            packageCount++
+            if(packageCount>=saveThreshold){
+                packageCount=0
+                for(s in ecgRes){
+                    ecgFilteredSamples.add(s)
+                }
+                for(s in ppgRes){
+                    ppgFilteredSamples.add(s)
+                }
             }
 
             //display info
