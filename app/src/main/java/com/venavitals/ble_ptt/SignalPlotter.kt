@@ -4,9 +4,9 @@ import com.androidplot.xy.AdvancedLineAndPointRenderer
 import com.androidplot.xy.SimpleXYSeries
 import com.androidplot.xy.XYSeries
 
-class EcgPlotter(title: String, ecgFrequency: Int) {
+class SignalPlotter(title: String, SignalFrequency: Int) {
     companion object {
-        private const val TAG = "EcgPlotter"
+        private const val TAG = "SignalPlotter"
         private const val SECONDS_TO_PLOT = 5
     }
 
@@ -17,7 +17,7 @@ class EcgPlotter(title: String, ecgFrequency: Int) {
     private var dataIndex = 0
 
     init {
-        val ySamplesSize = ecgFrequency * SECONDS_TO_PLOT
+        val ySamplesSize = SignalFrequency * SECONDS_TO_PLOT
         plotNumbers = MutableList(ySamplesSize) { null }
         formatter = AdvancedLineAndPointRenderer.Formatter()
         formatter.isLegendIconEnabled = false

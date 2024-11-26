@@ -36,9 +36,9 @@ import java.util.UUID
 
 
 
-class ECGActivity : AppCompatActivity(), PlotterListener {
+class ECGPPGActivity : AppCompatActivity(), PlotterListener {
     companion object {
-        private const val TAG = "ECGActivity"
+        private const val TAG = "ECGPPGActivity"
     }
 
     private lateinit var api: PolarBleApi
@@ -54,8 +54,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private lateinit var button2: Button
     private lateinit var ppgPlot: XYPlot
     private lateinit var ecgPlot: XYPlot
-    private lateinit var ppgPlotter: EcgPlotter
-    private lateinit var ecgPlotter: EcgPlotter
+    private lateinit var ppgPlotter: SignalPlotter
+    private lateinit var ecgPlotter: SignalPlotter
     private var ppgDisposable: Disposable? = null
     private var hrDisposable: Disposable? = null
 
@@ -258,7 +258,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
                 when (feature) {
                     PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING -> {
-                        streamHR()
+//                        streamHR()
 
                     }
                     PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_SDK_MODE->{
@@ -268,7 +268,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                                 {
                                     Log.d(TAG, "SDK mode enabled")
                                     streamPPG()
-                                    streamHR()
                                 },
                                 { error ->
                                     val errorString = "SDK mode enable failed: $error"
@@ -312,7 +311,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         val deviceIdText = "ID: $ppgDeviceId"
         textViewDeviceId.text = deviceIdText
 
-        ppgPlotter = EcgPlotter("PPG", ppgSR)
+        ppgPlotter = SignalPlotter("PPG", ppgSR)
         ppgPlotter.setListener(this)
         ppgPlot.addSeries(ppgPlotter.getSeries(), ppgPlotter.formatter)
         ppgPlot.setRangeBoundaries(160000, 200000, BoundaryMode.AUTO)
@@ -323,7 +322,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 //        ppgPlot.graph.setMargins(-1000f,0f,0f,0f)
 
 
-        ecgPlotter = EcgPlotter("ECG", ecgSR)
+        ecgPlotter = SignalPlotter("ECG", ecgSR)
         ecgPlotter.setListener(this)
         ecgPlot.addSeries(ecgPlotter.getSeries(), ecgPlotter.formatter)
         ecgPlot.setRangeBoundaries(160000, 200000, BoundaryMode.AUTO)

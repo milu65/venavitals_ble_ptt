@@ -61,7 +61,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".ECGActivity"
+            android:name=".ECGPPGActivity"
             android:exported="false"
             android:label="@string/ecg_name"
             android:parentActivityName=".MainActivity"

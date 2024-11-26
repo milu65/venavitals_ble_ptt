@@ -128,7 +128,7 @@ class MainActivity : AppCompatActivity() {
             showDialog(view)
         } else {
 //            showToast(getString(R.string.connecting) + " " + deviceId)
-            val intent = Intent(this, ECGActivity::class.java)
+            val intent = Intent(this, ECGPPGActivity::class.java)
             intent.putExtra("id", ppgDeviceId)
             Log.d(TAG, "Navigating to ECGActivity with deviceId: $ppgDeviceId")
 
