@@ -331,33 +331,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         ecgPlot.setDomainStep(StepMode.INCREMENT_BY_VAL, 30000.0)
         ecgPlot.setDomainBoundaries(0, 20000, BoundaryMode.AUTO)
         ecgPlot.linesPerRangeLabel = 2
-//        ecgPlot.graph.setMargins(-1000f,0f,0f,0f)
-
-
-//        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
-//        bottomNavigationView.selectedItemId = R.id.navigation_chart
-//        bottomNavigationView.setOnItemSelectedListener { item ->
-//            when (item.itemId) {
-//                R.id.navigation_connect -> {
-//                    // Navigate to MainActivity
-//                    startActivity(Intent(this, MainActivity::class.java))
-//                    true
-//                }
-//                R.id.navigation_chart -> {
-//                    // Stay in ECGActivity
-//                    true
-//                }
-//                R.id.navigation_user -> {
-//                    // Placeholder for future user activity
-//                    true
-//                }
-//                R.id.navigation_settings -> {
-//                    // Placeholder for future settings activity
-//                    true
-//                }
-//                else -> false
-//            }
-//        }
 
         val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
         bottomNavigationView.selectedItemId = R.id.navigation_chart  // 设置选中的项为 chart
@@ -388,10 +361,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         val path = getExternalFilesDir(null).toString()+"/"+sdf.format(resultdate);
         Log.d(TAG, "file save path: $path");
 
-//        for(sample in ppgSamples){
-//            sample.timestamp=polarTimestamp2UnixTimestamp(sample.timestamp)
-//        }
-
 
         Utils.saveSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
         Utils.saveSamples(ppgSamples,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
@@ -420,25 +389,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 { polarPpgData: PolarPpgData ->
                     if (polarPpgData.type == PolarPpgData.PpgDataType.PPG3_AMBIENT1) {
                         assert(polarPpgData.samples.isNotEmpty())
-//                        if(ppgFirstSampleTimestamp==0L){
-//                            val et=System.currentTimeMillis()
-//                            val rt=et-st
-//                            Log.i(TAG, "Stream PPG RT: "+rt.toString()+" Pkg size: "+polarPpgData.samples.size)
-//                            if(rt<2310){
-//                                Log.e(TAG, "can not sync signals")
-//
-////                                return@subscribe
-//                                val pkgTimeLength = ((polarPpgData.samples.size.toDouble())/ppgSR*1000).toLong()
-//                                ppgAdjustedFirstSampleTimestamp = et-225-pkgTimeLength
-//                            }else{
-//                                ppgAdjustedFirstSampleTimestamp = st+(rt-960)
-//                            }
-//                            ppgAdjustedFirstSampleTimestamp = st
-//                            ppgFirstSampleTimestamp = polarPpgData.samples[0].timeStamp
-//
-//                            val ppgTimestamp= Utils.polarTimestamp2UnixTimestamp(ppgFirstSampleTimestamp)
-//                            Log.i(TAG,et.toString()+" "+ppgTimestamp+" diff: "+(et-ppgTimestamp))
-//                        }
 
                         if(ppgFirstSampleTimestamp==0L){
                             ppgFirstSampleTimestamp = polarPpgData.samples[0].timeStamp
@@ -665,14 +615,4 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         }
 
     }
-
-//    override fun onResume() {
-//        super.onResume()
-//
-//        // 设置导航栏的选中状态为chart
-//        val bottomNavigationView: BottomNavigationView = findViewById(R.id.bottom_navigation)
-//        bottomNavigationView.selectedItemId = R.id.navigation_chart
-//    }
-
-
 }
