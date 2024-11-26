@@ -73,7 +73,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     @Volatile private var startTimestamp: Long = 0
     @Volatile private var ppgReceived:Boolean =false
     private var ecgFirstSampleTimestamp = 0L
-    private val ecgFirstSampleTimestampOffset: Long = 20L
     private var ppgFirstSampleTimestamp: Long = 0L
     private var ppgAdjustedFirstSampleTimestamp: Long = 0L
     @Volatile private var offset: Long =0
@@ -476,7 +475,8 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
             for (data in samples) {
                 val value = - data.channelSamples[0].toDouble()
-                val sample = Sample((data.timeStamp-ppgFirstSampleTimestamp)/ Utils.MStoNS +ppgAdjustedFirstSampleTimestamp+offset, value)
+                val clockErrorCompensation = -2.4316241065484705e-05*(timestamp-ppgAdjustedFirstSampleTimestamp)
+                val sample = Sample((data.timeStamp-ppgFirstSampleTimestamp)/ Utils.MStoNS + ppgAdjustedFirstSampleTimestamp + offset - clockErrorCompensation.toLong(), value)
                 ppgSamples.add(sample)
             }
 
@@ -616,7 +616,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private fun plotECG(sample: Sample) {
         lastECG=sample.value
         if(ppgReceived){
-            sample.timestamp = sample.timestamp - ecgFirstSampleTimestamp + startTimestamp - ecgFirstSampleTimestampOffset
+            sample.timestamp = sample.timestamp - ecgFirstSampleTimestamp + startTimestamp
             ecgSamples.add(sample)
         }else{
             ecgFirstSampleTimestamp=sample.timestamp
