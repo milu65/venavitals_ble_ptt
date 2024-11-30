@@ -7,6 +7,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.androidplot.xy.BoundaryMode
 import com.androidplot.xy.StepMode
@@ -207,6 +208,19 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
             finish()
             return
         }
+
+        // 注册保存数据的回调
+        NavigationHelper.saveDataCallback = {
+            showSaveDialog()
+        }
+        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+        bottomNavigationView.selectedItemId = R.id.navigation_chart  // 设置当前选中项为 chart
+        // 设置底部导航的监听器
+        bottomNavigationView.setOnItemSelectedListener { item ->
+            NavigationHelper.handleNavigation(this, item.itemId)
+        }
+
+
         textViewHR = findViewById(R.id.hr)
         textViewRR = findViewById(R.id.rr)
         textViewDeviceId = findViewById(R.id.deviceId)
@@ -331,15 +345,43 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         ecgPlot.setDomainBoundaries(0, 20000, BoundaryMode.AUTO)
         ecgPlot.linesPerRangeLabel = 2
 
-        val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
-        bottomNavigationView.selectedItemId = R.id.navigation_chart  // 设置选中的项为 chart
+    }
 
-        val deviceId = intent.getStringExtra("id")
+    fun showSaveDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Save Data")
+            .setMessage("Do you want to save the ECG/PPG data before exiting?")
+            .setPositiveButton("Save") { _, _ ->
+                saveDatatoLocal()
+//                saveDataToServer()
+                finish();//结束ECGActivity
+            }
+            .setNegativeButton("Don't Save") { _, _ ->
+                finish();
+            }
+            .setNeutralButton("Cancel", null)  // 不进行任何操作，只关闭对话框
+            .show()
+    }
 
-        bottomNavigationView.setOnItemSelectedListener { item ->
-            NavigationHelper.handleNavigation(this, item.itemId, deviceId)
-        }
+    private fun saveDatatoLocal(){
+        //        path = Environment.getExternalStorageDirectory().toString();
+        val sdf = SimpleDateFormat("yyyy_MM_dd_HH:mm:ss")
+        val resultdate = Date(System.currentTimeMillis())
+        val path = getExternalFilesDir(null).toString()+"/"+sdf.format(resultdate);
+        Log.d(TAG, "file save path: $path");
 
+//        for(sample in ppgSamples){
+//            sample.timestamp=polarTimestamp2UnixTimestamp(sample.timestamp)
+//        }
+        Utils.saveSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
+        Utils.saveSamples(ppgSamples,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
+        Utils.saveSamples(hrSamples,path,sdf.format(resultdate)+"_hr_samples_"+ecgSR+".txt")
+        Utils.saveSamples(pttSamples,path,sdf.format(resultdate)+"_ptt_samples_"+ppgSR+".txt")
+        Utils.saveValueSamples(ecgFilteredSamples,path,sdf.format(resultdate)+"_ecg_filtered_samples_"+ecgSR+".txt")
+        Utils.saveValueSamples(ppgFilteredSamples,path,sdf.format(resultdate)+"_ppg_filtered_samples_"+ppgSR+".txt")
+
+        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
+        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
     }
 
     public override fun onDestroy() {
@@ -353,23 +395,6 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         }
         api.shutDown()
 
-
-//        path = Environment.getExternalStorageDirectory().toString();
-        val sdf = SimpleDateFormat("yyyy_MM_dd_HH:mm:ss")
-        val resultdate = Date(System.currentTimeMillis())
-        val path = getExternalFilesDir(null).toString()+"/"+sdf.format(resultdate);
-        Log.d(TAG, "file save path: $path");
-
-
-        Utils.saveSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
-        Utils.saveSamples(ppgSamples,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
-        Utils.saveSamples(hrSamples,path,sdf.format(resultdate)+"_hr_samples_"+ecgSR+".txt")
-        Utils.saveSamples(pttSamples,path,sdf.format(resultdate)+"_ptt_samples_"+ppgSR+".txt")
-        Utils.saveValueSamples(ecgFilteredSamples,path,sdf.format(resultdate)+"_ecg_filtered_samples_"+ecgSR+".txt")
-        Utils.saveValueSamples(ppgFilteredSamples,path,sdf.format(resultdate)+"_ppg_filtered_samples_"+ppgSR+".txt")
-
-        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
-        Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
     }
 
 

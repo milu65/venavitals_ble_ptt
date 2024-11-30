@@ -48,6 +48,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true"
         >
         <service android:name=".uart.UartService" />
         <activity
@@ -72,5 +73,9 @@
             android:label="@string/hr_name"
             android:parentActivityName=".MainActivity"
             android:screenOrientation="portrait" />
+        <activity android:name=".BLEScanActivity"
+            android:exported="false"
+            android:label="@string/hr_name"
+            android:parentActivityName=".MainActivity"/>
     </application>
 </manifest>

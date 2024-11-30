@@ -76,6 +76,31 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/buttonSetID" />
 
+    <!-- 添加标题来表示已连接过的设备 -->
+    <TextView
+        android:id="@+id/previously_connected_devices_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Previously Connected Devices:"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black"
+        android:layout_marginTop="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonConnectPpg" />
+
+    <ListView
+        android:id="@+id/device_id_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="40dp"
+        app:layout_constraintBottom_toTopOf="@+id/bottom_navigation"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonConnectPpg"
+        app:layout_constraintVertical_bias="1.0" />
+
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
