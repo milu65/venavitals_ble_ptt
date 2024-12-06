@@ -114,16 +114,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onClickConnectPpgEcg(view: View) {
-        // 确保蓝牙已启用
         if (checkBT()) {
-            // 检查是否已有必要的位置权限
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                // 请求位置权限
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_REQUEST_CODE)
-            } else {
-                // 如果已有权限，直接启动 DeviceListActivity
-                launchDeviceListActivity()
-            }
+            launchDeviceListActivity()
         }
     }
 
