@@ -166,18 +166,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkBT(): Boolean {
-        val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+        val btManager = applicationContext.getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         val bluetoothAdapter: BluetoothAdapter? = btManager.adapter
         if (bluetoothAdapter == null) {
             showToast("Device doesn't support Bluetooth")
             return false
         }
+
         if (!bluetoothAdapter.isEnabled) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             bluetoothOnActivityResultLauncher.launch(enableBtIntent)
-            return false
+            return false // Bluetooth未启用且请求用户启用
         }
-        return true
+
+        // 检查和请求位置权限，这是扫描蓝牙设备所需的权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Android 12 及以上需要 BLUETOOTH_SCAN 和 BLUETOOTH_CONNECT 权限
+                requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), PERMISSION_REQUEST_CODE)
+            } else {
+                // Android 10 和 Android 11 需要 ACCESS_FINE_LOCATION 权限
+                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_REQUEST_CODE)
+            }
+        } else {
+            // Android 9 及以下版本需要 ACCESS_COARSE_LOCATION 权限
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), PERMISSION_REQUEST_CODE)
+        }
+        return true // 权限请求已发送
     }
 
 //    private fun checkBT() {
