@@ -64,8 +64,8 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
     private var uart: UartOld =
         UartOld()
 
-    private var ecgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList()) //TODO: ConcurrentLinkedQueue might be better
-    private var ppgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList())
+    private var ecgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList(120000)) //TODO: ConcurrentLinkedQueue might be better
+    private var ppgSamples: MutableList<Sample> = Collections.synchronizedList(ArrayList(120000))
     private var ppgFilteredSamples: LinkedList<Double> = LinkedList()
     private var ecgFilteredSamples: LinkedList<Double> = LinkedList()
     private var hrSamples: LinkedList<Sample> = LinkedList()
