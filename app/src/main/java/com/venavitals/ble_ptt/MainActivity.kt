@@ -116,12 +116,12 @@ class MainActivity : AppCompatActivity() {
     private fun onClickConnectPpgEcg(view: View) {
         // 确保蓝牙已启用
         if (checkBT()) {
+            launchDeviceListActivity()
+        }else{
             // 检查是否已有必要的位置权限
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 // 请求位置权限
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_REQUEST_CODE)
-            } else {
-                // 如果已有权限，直接启动 DeviceListActivity
                 launchDeviceListActivity()
             }
         }
@@ -194,29 +194,6 @@ class MainActivity : AppCompatActivity() {
         }
         return true // 权限请求已发送
     }
-
-//    private fun checkBT() {
-//        val btManager = applicationContext.getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-//        val bluetoothAdapter: BluetoothAdapter? = btManager.adapter
-//        if (bluetoothAdapter == null) {
-//            showToast("Device doesn't support Bluetooth")
-//            return
-//        }
-//        if (!bluetoothAdapter.isEnabled) {
-//            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-//            bluetoothOnActivityResultLauncher.launch(enableBtIntent)
-//        }
-//
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-//                requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), PERMISSION_REQUEST_CODE)
-//            } else {
-//                requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_REQUEST_CODE)
-//            }
-//        } else {
-//            requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), PERMISSION_REQUEST_CODE)
-//        }
-//    }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
