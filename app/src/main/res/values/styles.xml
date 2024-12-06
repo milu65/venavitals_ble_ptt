@@ -5,15 +5,15 @@
         <!-- Customize your theme here. -->
 
         <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="android:statusBarColor">@color/colorHeader</item><!-- 手机顶部状态栏的颜色-->
+        <item name="android:statusBarColor">@color/colorHeader</item>
         <item name="android:windowLightStatusBar">true</item>
 <!--        <item name="colorOnPrimary">@color/colorTextPrimary</item>-->
 <!--        <item name="colorSecondary">@color/colorAccent</item>-->
-<!--        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>--><!-- 手机顶部状态栏的颜色（如时间、电量那一栏）选择不设置 -->
+<!--        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>-->
 <!--        <item name="colorAccent">@color/colorAccent</item>-->
     </style>
 
-    <!-- 自定义 ActionBar 样式 -->
+    <!-- ActionBar style -->
     <style name="MyToolbarStyle" parent="Widget.MaterialComponents.Toolbar.Primary">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">?attr/actionBarSize</item>
@@ -33,19 +33,19 @@
         <item name="colorAccent">@color/colorPrimary</item>
     </style>
 
-<!--    底部导航栏样式-->
+<!--    bottom style-->
     <style name="BottomNavigationStyle" parent="Widget.MaterialComponents.BottomNavigationView.Colored">
         <item name="android:background">@color/bottomNavi</item>
     </style>
 
-<!--    按钮样式-->
+<!--   button style -->
     <style name="CustomButtonStyle" parent="Widget.MaterialComponents.Button">
         <item name="android:background">@drawable/rounded_button</item>
         <item name="android:textColor">@color/white</item>
-        <item name="backgroundTint">@null</item> <!-- 确保背景不被 tint 影响 -->
+        <item name="backgroundTint">@null</item>
     </style>
 
-<!--    对话框样式-->
+
     <!-- Custom Dialog Style -->
     <style name="MyCustomMaterialAlertDialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
         <item name="colorPrimary">@color/colorDialogTheme</item>

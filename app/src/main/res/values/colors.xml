@@ -15,6 +15,7 @@
     <color name="unselectedColor">#9E9E9E</color> <!-- 用于导航栏未选中的项 -->
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
-
+    <color name="warning">#F44336</color>
+    <color name="connect">#00BCD4</color>
 
 </resources>

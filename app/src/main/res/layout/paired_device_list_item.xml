@@ -7,32 +7,36 @@
     android:padding="8dp">
 
     <!-- TextView  -->
+
+    <!-- Connect 按钮  -->
+
     <TextView
         android:id="@+id/device_name"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="2"
+        android:padding="8dp"
         android:text="Device Name"
-        android:textSize="14sp"
         android:textColor="@android:color/black"
-        android:padding="8dp"/>
-
-    <!-- Connect 按钮  -->
-    <Button
-        android:id="@+id/connect_button"
-        android:layout_width="75dp"
-        android:layout_height="40dp"
-        android:padding="0dp"
-        android:textSize="9sp"
-        android:layout_marginEnd="10dp"
-    android:text="Connect" />
+        android:textSize="14sp" />
 
     <!-- Unpair 按钮  -->
     <Button
+        android:id="@+id/connect_button"
+        android:layout_width="70dp"
+        android:layout_height="35dp"
+        android:layout_marginEnd="5dp"
+        android:padding="0dp"
+        android:text="Connect"
+        android:backgroundTint="@color/connect"
+        android:textSize="9sp" />
+
+    <Button
         android:id="@+id/unpair_button"
-        android:layout_width="75dp"
-        android:layout_height="40dp"
+        android:layout_width="60dp"
+        android:layout_height="35dp"
         android:padding="0dp"
         android:textSize="9sp"
+        android:backgroundTint="@color/warning"
         android:text="Unpair" />
 </LinearLayout>

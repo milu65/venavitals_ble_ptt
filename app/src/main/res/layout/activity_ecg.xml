@@ -70,10 +70,10 @@
         app:layout_constraintStart_toStartOf="parent"
         app:lineLabelInsetLeft="12dp"
         app:lineLabels="left"
-        app:rangeTitle=""
         app:rangeTitleTextColor="@android:color/black"
         app:rangeTitleTextSize="12dp"
         app:renderMode="use_background_thread"
+
         app:title="" />
 
     <com.androidplot.xy.XYPlot
@@ -90,11 +90,11 @@
         app:layout_constraintBottom_toTopOf="@+id/sinfo"
         app:lineLabelInsetLeft="12dp"
         app:lineLabels="left"
-        app:rangeTitle=""
         app:rangeTitleTextColor="@android:color/black"
         app:rangeTitleTextSize="12dp"
         app:renderMode="use_background_thread"
         app:title=""
+        app:rangeTitle="mV"
         tools:layout_editor_absoluteY="473dp" />
 
     <TextView

@@ -22,6 +22,12 @@ import com.polar.sdk.api.model.PolarDeviceInfo
 import com.polar.sdk.api.model.PolarHrData
 import com.polar.sdk.api.model.PolarPpgData
 import com.polar.sdk.api.model.PolarSensorSetting
+import com.venavitals.ble_ptt.model.MeasurementData
+import com.venavitals.ble_ptt.network.Constants
+import com.venavitals.ble_ptt.network.JsonUtil
+import com.venavitals.ble_ptt.network.NetworkUtils
+import com.venavitals.ble_ptt.network.TokenManager
+import com.venavitals.ble_ptt.service.MeasurementDataService
 import com.venavitals.ble_ptt.signal.Sample
 import com.venavitals.ble_ptt.signal.Utils
 import com.venavitals.ble_ptt.signal.filters.ButterworthBandpassFilter
@@ -29,19 +35,22 @@ import com.venavitals.ble_ptt.uart.UartOld
 import com.venavitals.ble_ptt.uart.UartService
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
+import org.json.JSONException
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Collections
 import java.util.Date
 import java.util.LinkedList
 import java.util.UUID
-
+import kotlin.random.Random
 
 
 class ECGPPGActivity : AppCompatActivity(), PlotterListener {
     companion object {
         private const val TAG = "ECGPPGActivity"
     }
-
+    private var userId: Long? = null
+    private lateinit var measurementDataService : MeasurementDataService
     private lateinit var api: PolarBleApi
     private lateinit var textViewHR: TextView
     private lateinit var textViewRR: TextView
@@ -104,7 +113,6 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
             Toast.makeText(this, "Try again", Toast.LENGTH_LONG).show()
             return
         }
-
         val ecgSize=ecgSamples.size
         var ecgTimestamp=0L
         for(i in ecgSize-ecgPlotterSize until ecgSize){
@@ -113,9 +121,7 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
                 ecgTimestamp=ecgSamples[i-1].timestamp
                 break
             }
-
         }
-
         val ppgSize=ppgSamples.size
         var ppgTimestamp=0L
         var ppgSum=0.0
@@ -134,7 +140,6 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
             return
         }
 
-
         val newOffset=ecgTimestamp-(ppgTimestamp-offset)
         println("Sync: ecg "+ecgTimestamp+" ppg "+ppgTimestamp+ " newOffset "+newOffset)
         if(offset==0L){
@@ -151,8 +156,6 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         Toast.makeText(this, "ppgOffset from "+offset+" set to "+newOffset+" diff="+(offset-newOffset), Toast.LENGTH_LONG).show()
         offset=newOffset
 
-
-
         val sdf = SimpleDateFormat("yyyy_MM_dd_HH:mm:ss")
         val resultdate = Date(System.currentTimeMillis())
         val path = getExternalFilesDir(null).toString()+"/"+sdf.format(resultdate)
@@ -160,7 +163,6 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         val al2=ArrayList(ppgSamples)
         Utils.saveSamples(al,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
         Utils.saveSamples(al2,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
-
         Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt",ecgTimestamp.toString())
         Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt",ppgTimestamp.toString())
     }
@@ -194,6 +196,7 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        measurementDataService = MeasurementDataService()
         setContentView(R.layout.activity_ecg)
         // 尝试从 Intent 获取 deviceId
         ppgDeviceId = intent.getStringExtra("id").toString()
@@ -220,6 +223,7 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
             NavigationHelper.handleNavigation(this, item.itemId)
         }
 
+        checkLoginAndFetchUserInfo()
 
         textViewHR = findViewById(R.id.hr)
         textViewRR = findViewById(R.id.rr)
@@ -348,12 +352,15 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
     }
 
     fun showSaveDialog() {
+        Log.d("saveDataToServer","userId: $userId")
         AlertDialog.Builder(this)
             .setTitle("Save Data")
             .setMessage("Do you want to save the ECG/PPG data before exiting?")
             .setPositiveButton("Save") { _, _ ->
                 saveDatatoLocal()
-//                saveDataToServer()
+                if(userId != null){
+                    saveDataToServer()
+                }
                 finish();//结束ECGActivity
             }
             .setNegativeButton("Don't Save") { _, _ ->
@@ -370,9 +377,6 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         val path = getExternalFilesDir(null).toString()+"/"+sdf.format(resultdate);
         Log.d(TAG, "file save path: $path");
 
-//        for(sample in ppgSamples){
-//            sample.timestamp=polarTimestamp2UnixTimestamp(sample.timestamp)
-//        }
         Utils.saveSamples(ecgSamples,path,sdf.format(resultdate)+"_ecg_samples_"+ecgSR+".txt")
         Utils.saveSamples(ppgSamples,path,sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
         Utils.saveSamples(hrSamples,path,sdf.format(resultdate)+"_hr_samples_"+ecgSR+".txt")
@@ -384,20 +388,37 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         Utils.useThreadToSendFile(path+"/"+sdf.format(resultdate)+"_ppg_samples_"+ppgSR+".txt")
     }
 
+    private fun saveDataToServer() {
+        Log.d("saveDataToServer","userId:$userId")
+        val data = MeasurementData(
+            ecgSamples,
+            ppgSamples,
+            pttSamples,
+            ecgFilteredSamples,
+            ppgFilteredSamples,
+            hrSamples,
+            userId
+        )
+        // Proceed with sending 'data' to server
+        var jsonData = JsonUtil.toJson(data);
+        Log.d("saveDataToServer", "MeasurementData being sent: $jsonData")
+        measurementDataService.saveMeasurementData(jsonData)
+    }
+
+    // showSaveDialog when press the backward button
+    override fun onBackPressed() {
+        showSaveDialog()
+    }
+
     public override fun onDestroy() {
         super.onDestroy()
-
         uart.shutdown()
         unbindService(uart.mServiceConnection)
-
         ppgDisposable?.let {
             if (!it.isDisposed) it.dispose()
         }
         api.shutDown()
-
     }
-
-
     var st=0L
     fun streamPPG() {
         val isDisposed = ppgDisposable?.isDisposed ?: true
@@ -514,7 +535,6 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
             var ecgRes = ButterworthBandpassFilter.ecg250hzBandpassFilter(ecgPast)
             ecgRes = ButterworthBandpassFilter.trimSamples(ecgRes, ecgPaddingSize)
 
-
             //plot filtered ppg and ecg
             ppgPlotter.sendSamples(ppgRes)
             ecgPlotter.sendSamples(ecgRes)
@@ -592,17 +612,18 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         }
     }
 
-
     var lastECG=0.0
     private fun plotECG(sample: Sample) {
         lastECG=sample.value
         if(ppgReceived){
             sample.timestamp = sample.timestamp - ecgFirstSampleTimestamp + startTimestamp
             ecgSamples.add(sample)
+//            updatePlotRange(ecgPlot, ecgSamples)
         }else{
             ecgFirstSampleTimestamp=sample.timestamp
             ecgPlotter.sendSingleSample(sample.value)
             ecgSamples.add(sample)
+//            updatePlotRange(ecgPlot, ecgSamples)
         }
     }
 
@@ -644,6 +665,43 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         runOnUiThread {
             ecgPlot.redraw()
         }
+    }
 
+
+
+
+
+    private fun fetchUserInfo() {
+        val token = TokenManager.getInstance(this).getToken()
+        val url = Constants.BASE_URL+"/api/currentUser"
+        NetworkUtils.sendGetRequestWithToken(url, token, object : NetworkUtils.HttpCallback {
+            override fun onSuccess(response: String) {
+                updateUserInfo(response)
+            }
+            override fun onFailure(responseCode: Int, errorMessage: String) {
+                Toast.makeText(this@ECGPPGActivity, "Failed to fetch user info: $errorMessage", Toast.LENGTH_LONG).show()
+            }
+        })
+    }
+
+    private fun updateUserInfo(jsonResponse: String) {
+        try {
+            val jsonObject = JSONObject(jsonResponse)
+            userId = jsonObject.getLong("userId")
+//            val username = jsonObject.getString("username")
+        } catch (e: JSONException) {
+            Toast.makeText(this, "Error parsing user info", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun checkLoginAndFetchUserInfo() {
+        TokenManager.getInstance(this).isLoggedIn { isLoggedIn ->
+            if (isLoggedIn) {
+                Log.d(TAG,"log in")
+                fetchUserInfo()
+            } else {
+                Log.d(TAG,"not log in")
+            }
+        }
     }
 }

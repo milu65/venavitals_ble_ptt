@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
 
         private var instance: MainActivity? = null
 
-        //在其他类中获取DeviceId
+        //新增getDeviceId方法，在其他类中获取DeviceId
         fun getDeviceId(): String? {
             return instance?.ppgDeviceId
         }
@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //当用户点击BLEScanActivity列表的item后， 注册 ActivityResultLauncher 用于启动 BLEScanActivity 并接收结果
+    //当用户点击BLEScanActivity列表的item后， 注册 ActivityResultLauncher 用于启动 DeviceListActivity 并接收结果
     private val selectDeviceLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -68,9 +68,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     private var ppgDeviceId: String? = ""
 
-    private val DEFAULT_PPG_DEVICE_ID= "D6E9FA2D"
+//    private val DEFAULT_PPG_DEVICE_ID= "D6E9FA2D"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,11 +82,13 @@ class MainActivity : AppCompatActivity() {
             PERMISSION_REQUEST_CODE
         )
 
+
         setContentView(R.layout.activity_main)
 
         //配置AppBar
         val toolbar: MaterialToolbar = findViewById(R.id.topAppBar)
         setSupportActionBar(toolbar)
+
         //bottomNavigation
         toolbar.setNavigationOnClickListener {
             // Handle navigation icon click event
@@ -100,51 +103,37 @@ class MainActivity : AppCompatActivity() {
         displayDeviceIds()
 //        ppgDeviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
 //        if(ppgDeviceId==null|| ppgDeviceId==""){
-//            ppgDeviceId = DEFAULT_PPG_DEVICE_ID
+////            ppgDeviceId = DEFAULT_PPG_DEVICE_ID
 //        }
 
         val setIdButton: Button = findViewById(R.id.buttonSetID)
-        val ppgEcgConnectButton: Button = findViewById(R.id.buttonConnectPpg)
+        val bleScanButton: Button = findViewById(R.id.buttonConnectPpg)
 //        val hrConnectButton: Button = findViewById(R.id.buttonConnectHr)
         checkBT()
 
         setIdButton.setOnClickListener { onClickChangeID(it) }
-        ppgEcgConnectButton.setOnClickListener { onClickConnectPpgEcg(it) }
+        bleScanButton.setOnClickListener { onClickBLEScan(it) }
 //        hrConnectButton.setOnClickListener { onClickConnectHr(it) }
     }
 
-    private fun onClickConnectPpgEcg(view: View) {
-        // 确保蓝牙已启用
+    private fun onClickBLEScan(view: View) {
         if (checkBT()) {
             launchDeviceListActivity()
-        }else{
-            // 检查是否已有必要的位置权限
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                // 请求位置权限
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_REQUEST_CODE)
+        }
+            // check if need location permission
+            else {
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_REQUEST_CODE)
+                }
                 launchDeviceListActivity()
             }
-        }
-    }
-
-    private fun onClickConnectHr(view: View) {
-        checkBT()
-        if (ppgDeviceId == null || ppgDeviceId == "") {
-            ppgDeviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
-            showDialog(view)
-        } else {
-            showToast(getString(R.string.connecting) + " " + ppgDeviceId)
-            val intent = Intent(this, HRActivity::class.java)
-            intent.putExtra("id", ppgDeviceId)
-            startActivity(intent)
-        }
     }
 
     private fun onClickChangeID(view: View) {
         showDialog(view)
     }
 
-//    dialog修改过使用了MaterialAlertDialogBuilder
+    //    dialog MaterialAlertDialogBuilder
     private fun showDialog(view: View) {
         MaterialAlertDialogBuilder(this)
             .setTitle("Enter your Polar device's ID")
@@ -176,24 +165,25 @@ class MainActivity : AppCompatActivity() {
         if (!bluetoothAdapter.isEnabled) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             bluetoothOnActivityResultLauncher.launch(enableBtIntent)
-            return false // Bluetooth未启用且请求用户启用
+            return false // Bluetooth not activate
         }
 
-        // 检查和请求位置权限，这是扫描蓝牙设备所需的权限
+        // request permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                // Android 12 及以上需要 BLUETOOTH_SCAN 和 BLUETOOTH_CONNECT 权限
+                // Android 12 and above need BLUETOOTH_SCAN and BLUETOOTH_CONNECT permission
                 requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), PERMISSION_REQUEST_CODE)
             } else {
-                // Android 10 和 Android 11 需要 ACCESS_FINE_LOCATION 权限
+                // Android 10 and Android 11 need ACCESS_FINE_LOCATION permission
                 requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_REQUEST_CODE)
             }
         } else {
-            // Android 9 及以下版本需要 ACCESS_COARSE_LOCATION 权限
+            // Android 9 need ACCESS_COARSE_LOCATION permission
             requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), PERMISSION_REQUEST_CODE)
         }
-        return true // 权限请求已发送
+        return true
     }
+
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -256,4 +246,5 @@ class MainActivity : AppCompatActivity() {
         val listView = findViewById<ListView>(R.id.device_id_list)
         listView.adapter = adapter
     }
+
 }
