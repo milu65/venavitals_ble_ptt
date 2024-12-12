@@ -15,7 +15,6 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.venavitals.ble_ptt.UserActivities.LoginActivity;
 import com.venavitals.ble_ptt.NavigationHelper;
 import com.venavitals.ble_ptt.R;
 import com.venavitals.ble_ptt.network.Constants;
@@ -28,6 +27,7 @@ public class UserInfoActivity extends AppCompatActivity {
     private TextView usernameView;
     private ListView userOptions;
     private Button logoutButton;
+    private Long userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,15 +88,22 @@ public class UserInfoActivity extends AppCompatActivity {
     }
 
     private void handleOptionClick(int position) {
+        Intent intent;
         switch (position) {
             case 0:
-                startActivity(new Intent(this, UserProfileActivity.class));
+                intent = new Intent(this, UserProfileActivity.class);
+                intent.putExtra("USER_ID", userId);
+                startActivity(intent);
                 break;
             case 1:
-                startActivity(new Intent(this, UserHealthActivity.class));
+                intent = new Intent(this, UserHealthActivity.class);
+                intent.putExtra("USER_ID", userId);
+                startActivity(intent);
                 break;
             case 2:
-                startActivity(new Intent(this, HistoryData.class));
+                intent = new Intent(this, HistoryDataActivity.class);
+                intent.putExtra("USER_ID",userId);
+                startActivity(intent);
                 break;
         }
     }
@@ -113,7 +120,7 @@ public class UserInfoActivity extends AppCompatActivity {
             NetworkUtils.sendGetRequestWithToken(url, token, new NetworkUtils.HttpCallback() {
                 @Override
                 public void onSuccess(String response) {
-                    runOnUiThread(() -> updateUserName(response));
+                    runOnUiThread(() -> updateUserInfo(response));
                 }
                 @Override
                 public void onFailure(int responseCode, String errorMessage) {
@@ -125,10 +132,11 @@ public class UserInfoActivity extends AppCompatActivity {
     }
 
 
-    private void updateUserName(String json) {
+    private void updateUserInfo(String json) {
         try {
             JSONObject jsonObject = new JSONObject(json);
             String username = jsonObject.optString("username", "N/A");
+            userId = jsonObject.optLong("userId", -1);
 
             TextView usernameView = findViewById(R.id.username);
 

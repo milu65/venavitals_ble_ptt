@@ -338,8 +338,6 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
         ppgPlot.setDomainBoundaries(0, 20000, BoundaryMode.AUTO)
         ppgPlot.linesPerRangeLabel = 2
 //        ppgPlot.graph.setMargins(-1000f,0f,0f,0f)
-
-
         ecgPlotter = SignalPlotter("ECG", ecgSR)
         ecgPlotter.setListener(this)
         ecgPlot.addSeries(ecgPlotter.getSeries(), ecgPlotter.formatter)
@@ -352,23 +350,30 @@ class ECGPPGActivity : AppCompatActivity(), PlotterListener {
     }
 
     fun showSaveDialog() {
-        Log.d("saveDataToServer","userId: $userId")
+        Log.d("saveDataToServer", "userId: $userId")
+        val message = if (userId != null) {
+            "Do you want to save the ECG/PPG data before exiting? (You are logged in, and the data will be saved to the database.)"
+        } else {
+            "Do you want to save the ECG/PPG data before exiting? (Data will only be saved locally.)"
+        }
+
         AlertDialog.Builder(this)
             .setTitle("Save Data")
-            .setMessage("Do you want to save the ECG/PPG data before exiting?")
+            .setMessage(message)
             .setPositiveButton("Save") { _, _ ->
                 saveDatatoLocal()
-                if(userId != null){
+                if (userId != null) {
                     saveDataToServer()
                 }
-                finish();//结束ECGActivity
+                finish() // Ends ECGActivity
             }
             .setNegativeButton("Don't Save") { _, _ ->
-                finish();
+                finish()
             }
-            .setNeutralButton("Cancel", null)  // 不进行任何操作，只关闭对话框
+            .setNeutralButton("Cancel", null)  // Do nothing, just close the dialog
             .show()
     }
+
 
     private fun saveDatatoLocal(){
         //        path = Environment.getExternalStorageDirectory().toString();

@@ -38,6 +38,7 @@ dependencies {
         exclude group: 'org.apache.maven.surefire', module: 'common-java5'
         exclude group: 'org.apache.maven.surefire', module: 'surefire-api'
     }
+    implementation 'androidx.recyclerview:recyclerview:1.2.1'
     implementation 'com.google.code.gson:gson:2.11.0'
     implementation 'com.google.android.material:material:1.7.0'
     implementation 'com.androidplot:androidplot-core:1.5.10'

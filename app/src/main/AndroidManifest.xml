@@ -87,7 +87,15 @@
             android:parentActivityName=".MainActivity"/>
         <activity android:name=".UserActivities.UserProfileActivity"
             android:exported="false"
-            android:label="UserInfo"
+            android:label="UserProfile"
+            android:parentActivityName=".UserActivities.UserInfoActivity"/>
+        <activity android:name=".UserActivities.HistoryDataActivity"
+            android:exported="false"
+            android:label="HistoryData"
+            android:parentActivityName=".UserActivities.UserInfoActivity"/>
+        <activity android:name=".UserActivities.UserHealthActivity"
+            android:exported="false"
+            android:label="HealthActivity"
             android:parentActivityName=".UserActivities.UserInfoActivity"/>
     </application>
 </manifest>
